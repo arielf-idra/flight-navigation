@@ -1,0 +1,9 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(node -e ' *)",
+      "Bash(xargs -I{} grep -il \"yossi\" {})",
+      "Bash(echo \"exit: $?\")"
+    ]
+  }
+}

@@ -4295,6 +4295,20 @@ var cvfrRoutesData = [
             });
         }
 
+        // Removes a pin together with its linked text box — used when the leg it
+        // sits on stops existing (waypoint deleted, waypoints reordered).
+        function removeIdentPointWithLabel(marker) {
+            var linkedTextBox = getTextBoxByIdentLink(marker.identData._id);
+            if (linkedTextBox) {
+                appState.map.removeLayer(linkedTextBox);
+                var tbIdx = appState.textBoxes.indexOf(linkedTextBox);
+                if (tbIdx > -1) appState.textBoxes.splice(tbIdx, 1);
+            }
+            appState.map.removeLayer(marker);
+            var ipIdx = appState.identPoints.indexOf(marker);
+            if (ipIdx > -1) appState.identPoints.splice(ipIdx, 1);
+        }
+
         function refreshIdentPointTimes() {
             appState.identPoints.forEach(function(marker) {
                 var d = marker.identData;
@@ -6076,15 +6090,7 @@ var cvfrRoutesData = [
             appState.identPoints.slice().forEach(function(marker) {
                 var legIdx = marker.identData.legIdx;
                 if (legIdx === idx - 1 || legIdx === idx) {
-                    var linkedTextBox = getTextBoxByIdentLink(marker.identData._id);
-                    if (linkedTextBox) {
-                        appState.map.removeLayer(linkedTextBox);
-                        var tbIdx = appState.textBoxes.indexOf(linkedTextBox);
-                        if (tbIdx > -1) appState.textBoxes.splice(tbIdx, 1);
-                    }
-                    appState.map.removeLayer(marker);
-                    var ipIdx = appState.identPoints.indexOf(marker);
-                    if (ipIdx > -1) appState.identPoints.splice(ipIdx, 1);
+                    removeIdentPointWithLabel(marker);
                 } else if (legIdx > idx) {
                     marker.identData.legIdx = legIdx - 1;
                 }
@@ -7118,9 +7124,26 @@ var cvfrRoutesData = [
         }
 
         function reorderWaypoint(fromIdx, toIdx) {
+            // Remember each ident point's leg by its two endpoint waypoint objects,
+            // since leg indices are about to change.
+            var identLegs = appState.identPoints.map(function(marker) {
+                var i = marker.identData.legIdx;
+                return { marker: marker, a: appState.waypoints[i], b: appState.waypoints[i + 1] };
+            });
             // Reorder waypoints array
             var wp = appState.waypoints.splice(fromIdx, 1)[0];
             appState.waypoints.splice(toIdx, 0, wp);
+            // A leg survives the reorder only if its two waypoints are still
+            // consecutive in the same order — follow it to its new index; otherwise
+            // the pin has no leg left to sit on, so remove it (as deleteWaypoint does).
+            identLegs.forEach(function(il) {
+                var newIdx = appState.waypoints.indexOf(il.a);
+                if (newIdx > -1 && appState.waypoints[newIdx + 1] === il.b) {
+                    il.marker.identData.legIdx = newIdx;
+                } else {
+                    removeIdentPointWithLabel(il.marker);
+                }
+            });
             // Reorder circles array to match
             var circle = appState.circles.splice(fromIdx, 1)[0];
             appState.circles.splice(toIdx, 0, circle);

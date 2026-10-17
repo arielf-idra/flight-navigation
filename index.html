@@ -7115,20 +7115,11 @@ var cvfrRoutesData = [
             updateStats();
         }
         
+        // Sidebar "Remove" button. Delegates to deleteWaypoint() (the map popup's
+        // delete path) so both clean up the same per-leg state — ident points and
+        // their linked text boxes, leg altitudes, label offsets, etc.
         function removeWaypoint(idx) {
-            appState.waypoints.splice(idx, 1);
-            if (appState.circles[idx]) {
-                appState.map.removeLayer(appState.circles[idx]);
-                appState.circles.splice(idx, 1);
-            }
-            
-            appState.waypoints.forEach(function(wp, i) {
-                wp.num = i + 1;
-            });
-            
-            updateRoute();
-            updateWaypointsList();
-            updateStats();
+            deleteWaypoint(idx);
         }
         
         function updateAllCircles() {

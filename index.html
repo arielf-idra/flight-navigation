@@ -81,6 +81,7 @@
                         <button class="btn-primary" id="legDistanceToggleBtn" onclick="toggleLegDistance()" style="font-size: 11px; padding: 6px 8px;">Hide Distance (NM)</button>
                         <button class="btn-primary"   id="vorInfoToggleBtn" onclick="toggleVORInfo()" style="font-size: 11px; padding: 6px 8px;">Hide VOR Info</button>
                         <button class="btn-secondary" id="airstripsToggleBtn" onclick="toggleAirstrips()" style="font-size: 11px; padding: 6px 8px;">Show Airstrips</button>
+                        <button class="btn-secondary" id="azimuthGuidesToggleBtn" onclick="toggleAzimuthGuides()" style="font-size: 11px; padding: 6px 8px;">Show ±45° Guides</button>
                     </div>
                 </div>
 
@@ -527,6 +528,8 @@
             waypointLabelStyles: {},
             timeMarkers: [],
             legLabels: [],
+            azimuthGuides: [],
+            azimuthGuidesVisible: false,
             driftLines: [],
             driftLinesVisible: true,
             showLegDistance: true,
@@ -5811,6 +5814,61 @@ var cvfrRoutesData = [
             }
         }
 
+        // Delicate ±45° dashed guide lines from each waypoint, aligned to the
+        // following leg's bearing, for a quick off-track azimuth estimate when
+        // re-planning. Redrawn by updateRoute() (see drawAzimuthGuides); this
+        // only flips the flag, updates the button and triggers a redraw.
+        function toggleAzimuthGuides() {
+            appState.azimuthGuidesVisible = !appState.azimuthGuidesVisible;
+            var btn = document.getElementById('azimuthGuidesToggleBtn');
+            if (btn) {
+                btn.textContent = appState.azimuthGuidesVisible ? 'Hide ±45° Guides' : 'Show ±45° Guides';
+                btn.className = appState.azimuthGuidesVisible ? 'btn-primary' : 'btn-secondary';
+            }
+            updateRoute();
+        }
+
+        // Called from updateRoute(). For every waypoint that has a following leg,
+        // draws two thin, faint dashed lines at (leg bearing ± 45°) so the pilot
+        // can eyeball an alternate heading. Lines go through dCoord()/offset like
+        // all other geometry and are stored in appState.azimuthGuides so
+        // updateRoute() can clear them on the next rebuild.
+        function drawAzimuthGuides() {
+            if (!appState.azimuthGuidesVisible) return;
+            if (!appState.waypoints || appState.waypoints.length < 2) return;
+
+            function destPoint(lat, lng, bearingDeg, distNm) {
+                var R = 180 / Math.PI;
+                var d = distNm / 3440.065;
+                var b = bearingDeg * Math.PI / 180;
+                var lat1 = lat * Math.PI / 180, lng1 = lng * Math.PI / 180;
+                var lat2 = Math.asin(Math.sin(lat1) * Math.cos(d) + Math.cos(lat1) * Math.sin(d) * Math.cos(b));
+                var lng2 = lng1 + Math.atan2(Math.sin(b) * Math.sin(d) * Math.cos(lat1), Math.cos(d) - Math.sin(lat1) * Math.sin(lat2));
+                return { lat: lat2 * R, lng: lng2 * R };
+            }
+
+            for (var i = 0; i < appState.waypoints.length - 1; i++) {
+                var a = appState.waypoints[i], bwp = appState.waypoints[i + 1];
+                var legBearing = calculateBearing(a.lat, a.lng, bwp.lat, bwp.lng);
+                // Guide length tracks the leg length so it stays proportionate,
+                // clamped so very short/long legs still give a usable ray.
+                var legNm = calculateDistance(a.lat, a.lng, bwp.lat, bwp.lng);
+                var guideNm = Math.max(5, Math.min(40, legNm));
+                [legBearing + 45, legBearing - 45].forEach(function(brg) {
+                    var end = destPoint(a.lat, a.lng, brg, guideNm);
+                    var startDisp = dCoord(a), endDisp = dCoord(end);
+                    var line = L.polyline([[startDisp.lat, startDisp.lng], [endDisp.lat, endDisp.lng]], {
+                        color: '#6a3d9a',
+                        weight: 1,
+                        opacity: 0.35,
+                        dashArray: '3 6',
+                        interactive: false
+                    }).addTo(appState.map);
+                    appState.azimuthGuides.push(line);
+                });
+            }
+        }
+
         function toggleLegTime() {
             appState.legTimeVisible = !appState.legTimeVisible;
             var btn = document.getElementById('legTimeToggleBtn');
@@ -6357,6 +6415,11 @@ var cvfrRoutesData = [
                 });
             }
             appState.legLabels = [];
+
+            if (appState.azimuthGuides) {
+                appState.azimuthGuides.forEach(function(l) { appState.map.removeLayer(l); });
+            }
+            appState.azimuthGuides = [];
 
             // Rebuild waypoint name labels
             if (appState.waypointLabels) {
@@ -6927,6 +6990,7 @@ var cvfrRoutesData = [
             }
 
             refreshIdentPointLegGeometry();
+            drawAzimuthGuides();
 
             // NOTAM route-proximity (distance/intersects/altitude-overlap)
             // depends on the current route, so it needs to be recomputed

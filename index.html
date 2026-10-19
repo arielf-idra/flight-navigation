@@ -542,6 +542,10 @@
             arrivalLabelPositions: {},
             arrivalLabelFontSize: 9,
             legAltitudes: {},
+            legClimbs: {},
+            tocMarkers: [],
+            lastClimbIAS: 0,
+            lastClimbRoc: 0,
             defaultAltitude: 400,
             infoBoxScale: 1.0,
             infoBoxSizeMultiplier: 1.2,
@@ -3535,6 +3539,10 @@ var cvfrRoutesData = [
             }
             appState.legAltitudes = newAlts;
 
+            // A climb reversed is a descent, so climbs don't carry over a route
+            // reversal — drop them rather than mislabel descents as climbs.
+            appState.legClimbs = {};
+
             // Remap ident points to their new leg index (leg i becomes leg n-2-i,
             // and its direction flips). Only legIdx needs correcting here — the
             // actual start/end/bearing get recomputed from the (now-reversed)
@@ -5480,6 +5488,79 @@ var cvfrRoutesData = [
             return appState.legAltitudes[legIndex] !== undefined ? appState.legAltitudes[legIndex] : appState.defaultAltitude;
         }
 
+        // Store a climb on a leg from the leg popup: validate, compute the climb
+        // geometry (ground speed + top-of-climb distance), remember the speed/rate
+        // as the next defaults, and sync the leg's altitude label to the climb
+        // target. updateRoute() then re-times the leg and drops the TOC marker.
+        window.applyLegClimb = function(legIdx) {
+            var g = function(id) { var e = document.getElementById(id); return e ? parseFloat(e.value) : NaN; };
+            var fromAlt = g('leg-climb-from-' + legIdx);
+            var toAlt   = g('leg-climb-to-' + legIdx);
+            var ias     = g('leg-climb-ias-' + legIdx);
+            var roc     = g('leg-climb-roc-' + legIdx);
+            var c = computeClimb(fromAlt, toAlt, ias, roc);
+            if (!c) { alert('Enter a valid climb: target above start, and positive climb speed and climb rate (climb speed must exceed the vertical rate).'); return; }
+            appState.legClimbs[legIdx] = { fromAlt: fromAlt, toAlt: toAlt, climbIAS: ias, roc: roc, gs: c.gs, dNm: c.dNm };
+            appState.lastClimbIAS = ias;
+            appState.lastClimbRoc = roc;
+            appState.legAltitudes[legIdx] = Math.round(toAlt);
+            appState.map.closePopup();
+            updateRoute();
+            updateStats();
+        };
+
+        window.clearLegClimb = function(legIdx) {
+            if (appState.legClimbs) delete appState.legClimbs[legIdx];
+            appState.map.closePopup();
+            updateRoute();
+            updateStats();
+        };
+
+        // ── Climb modelling ────────────────────────────────────────────────
+        // Horizontal ground distance (NM) covered while climbing from fromAlt to
+        // toAlt (ft) at a constant climb IAS (kt, taken as TAS) and rate of climb
+        // (ROC, ft/min), no wind. Derivation: the flight path is a right triangle
+        // with the airspeed as hypotenuse and ROC as the vertical leg, so the
+        // horizontal ground speed is GS = sqrt(IAS^2 - Vvert^2) where the vertical
+        // rate expressed in knots is ROC*60/6076.12. Climb time = dAlt/ROC.
+        // Returns {tMin, gs, dNm, gammaDeg} or null if the inputs don't describe a
+        // real climb (so callers can cleanly skip it). 6076.12 ft = 1 NM.
+        function computeClimb(fromAlt, toAlt, climbIAS, roc) {
+            var dH = toAlt - fromAlt;
+            if (!(dH > 0) || !(roc > 0) || !(climbIAS > 0)) return null;
+            var tMin = dH / roc;
+            var vVertKt = roc * 60 / 6076.12;
+            if (vVertKt >= climbIAS) return null; // climb angle >= 90°, not physical here
+            var gs = Math.sqrt(climbIAS * climbIAS - vVertKt * vVertKt);
+            var dNm = gs * tMin / 60;
+            var gammaDeg = Math.asin(vVertKt / climbIAS) * 180 / Math.PI;
+            return { tMin: tMin, gs: gs, dNm: dNm, gammaDeg: gammaDeg };
+        }
+
+        function getLegClimb(legIndex) {
+            return appState.legClimbs ? appState.legClimbs[legIndex] : undefined;
+        }
+
+        // Single source of truth for a leg's duration in seconds. With no climb
+        // defined for the leg this is identical to the old inline
+        // distance / cruiseSpeed * 3600, so routing every leg-time site through it
+        // is a no-op until a climb exists. With a climb, the first dNm (to the
+        // top-of-climb, clamped to the leg length) is flown at the climb ground
+        // speed and the remainder at cruise.
+        function legSeconds(i) {
+            var a = appState.waypoints[i], b = appState.waypoints[i + 1];
+            if (!a || !b) return 0;
+            var dist = calculateDistance(a.lat, a.lng, b.lat, b.lng);
+            var c = getLegClimb(i);
+            if (c && c.gs > 0 && c.dNm > 0) {
+                var climbDist = Math.min(c.dNm, dist);
+                var climbSecs = climbDist / c.gs * 3600;
+                var rest = Math.max(0, dist - climbDist);
+                return climbSecs + rest / appState.cruiseSpeed * 3600;
+            }
+            return dist / appState.cruiseSpeed * 3600;
+        }
+
         function openWaypointPopup(idx, latlng) {
             var wp = appState.waypoints[idx];
             if (!wp) return;
@@ -5869,6 +5950,49 @@ var cvfrRoutesData = [
             }
         }
 
+        // Called from updateRoute(). Drops a "TOC" (top-of-climb) marker on each
+        // leg that has a climb defined, at the climb's horizontal ground distance
+        // (dNm) along the leg — unless the climb outruns the leg, in which case
+        // the aircraft is still climbing at the next waypoint and no TOC falls on
+        // this leg. Markers are stored in appState.tocMarkers so updateRoute()
+        // clears them on the next rebuild.
+        function drawTocMarkers() {
+            if (!appState.legClimbs) return;
+            if (!appState.waypoints || appState.waypoints.length < 2) return;
+
+            function destPoint(lat, lng, bearingDeg, distNm) {
+                var R = 180 / Math.PI;
+                var d = distNm / 3440.065;
+                var brg = bearingDeg * Math.PI / 180;
+                var lat1 = lat * Math.PI / 180, lng1 = lng * Math.PI / 180;
+                var lat2 = Math.asin(Math.sin(lat1) * Math.cos(d) + Math.cos(lat1) * Math.sin(d) * Math.cos(brg));
+                var lng2 = lng1 + Math.atan2(Math.sin(brg) * Math.sin(d) * Math.cos(lat1), Math.cos(d) - Math.sin(lat1) * Math.sin(lat2));
+                return { lat: lat2 * R, lng: lng2 * R };
+            }
+
+            Object.keys(appState.legClimbs).forEach(function(k) {
+                var i = parseInt(k);
+                var c = appState.legClimbs[i];
+                var a = appState.waypoints[i], b = appState.waypoints[i + 1];
+                if (!a || !b || !c || !(c.dNm > 0)) return;
+                var legDist = calculateDistance(a.lat, a.lng, b.lat, b.lng);
+                if (c.dNm >= legDist) return; // still climbing past this leg — no TOC here
+                var brg = calculateBearing(a.lat, a.lng, b.lat, b.lng);
+                var pt = destPoint(a.lat, a.lng, brg, c.dNm);
+                var disp = dCoord(pt);
+                var html = '<div style="display:flex;flex-direction:column;align-items:center;white-space:nowrap;">' +
+                    '<div style="color:#b8006b;font-weight:700;font-size:10px;line-height:1;text-shadow:1px 1px 2px #fff,-1px -1px 2px #fff,1px -1px 2px #fff,-1px 1px 2px #fff;">TOC ' + c.toAlt + '</div>' +
+                    '<div style="color:#b8006b;font-size:14px;line-height:1;text-shadow:1px 1px 2px #fff,-1px -1px 2px #fff;">▲</div>' +
+                    '</div>';
+                var marker = L.marker([disp.lat, disp.lng], {
+                    icon: L.divIcon({ className: 'toc-marker', html: html, iconSize: [60, 24], iconAnchor: [30, 12] }),
+                    interactive: false,
+                    zIndexOffset: 450
+                }).addTo(appState.map);
+                appState.tocMarkers.push(marker);
+            });
+        }
+
         function toggleLegTime() {
             appState.legTimeVisible = !appState.legTimeVisible;
             var btn = document.getElementById('legTimeToggleBtn');
@@ -5888,7 +6012,7 @@ var cvfrRoutesData = [
             var cumSecs = 0;
             for (var i = 0; i < appState.waypoints.length - 1; i++) {
                 var a = appState.waypoints[i], b = appState.waypoints[i + 1];
-                var legSecs = Math.round(calculateDistance(a.lat, a.lng, b.lat, b.lng) / appState.cruiseSpeed * 3600);
+                var legSecs = Math.round(legSeconds(i));
                 cumSecs += legSecs;
                 var m = Math.floor(cumSecs / 60), s = cumSecs % 60;
                 map[i + 1] = (m < 10 ? '0' : '') + m + ':' + (s < 10 ? '0' : '') + s;
@@ -5920,14 +6044,14 @@ var cvfrRoutesData = [
             var _wpTimeMap = {};
             for (var _ti = 0; _ti < appState.waypoints.length - 1; _ti++) {
                 var _twp1 = appState.waypoints[_ti], _twp2 = appState.waypoints[_ti+1];
-                var _tTotalSecs = Math.round(calculateDistance(_twp1.lat,_twp1.lng,_twp2.lat,_twp2.lng) / appState.cruiseSpeed * 3600);
+                var _tTotalSecs = Math.round(legSeconds(_ti));
                 if (appState.miniWaypoints[_twp1.num]) {
                     var _accumSecs = _tTotalSecs, _fi = _ti - 1;
                     while (_fi >= 0 && appState.miniWaypoints[appState.waypoints[_fi].num]) {
-                        _accumSecs += Math.round(calculateDistance(appState.waypoints[_fi].lat,appState.waypoints[_fi].lng,appState.waypoints[_fi+1].lat,appState.waypoints[_fi+1].lng) / appState.cruiseSpeed * 3600);
+                        _accumSecs += Math.round(legSeconds(_fi));
                         _fi--;
                     }
-                    if (_fi >= 0) _accumSecs += Math.round(calculateDistance(appState.waypoints[_fi].lat,appState.waypoints[_fi].lng,appState.waypoints[_fi+1].lat,appState.waypoints[_fi+1].lng) / appState.cruiseSpeed * 3600);
+                    if (_fi >= 0) _accumSecs += Math.round(legSeconds(_fi));
                     var _m = Math.floor(_accumSecs/60), _s = _accumSecs%60;
                     _wpTimeMap[_ti+1] = (_m<10?'0':'')+_m+':'+(_s<10?'0':'')+_s;
                 } else {
@@ -5957,7 +6081,7 @@ var cvfrRoutesData = [
                 var wp1 = appState.waypoints[i], wp2 = appState.waypoints[i+1];
                 var d1 = dCoord(wp1), d2 = dCoord(wp2);
                 var heading = calculateBearing(wp1.lat, wp1.lng, wp2.lat, wp2.lng);
-                var timeHours = calculateDistance(wp1.lat, wp1.lng, wp2.lat, wp2.lng) / appState.cruiseSpeed;
+                var timeHours = legSeconds(i) / 3600;
                 var totalMinutesExact = timeHours * 60;
                 var totalMinutesForMarkers = Math.floor(totalMinutesExact);
 
@@ -5969,10 +6093,10 @@ var cvfrRoutesData = [
                 if (appState.miniWaypoints[wp1.num]) {
                     var _gi = i - 1;
                     while (_gi >= 0 && appState.miniWaypoints[appState.waypoints[_gi].num]) {
-                        accumMinOffset += calculateDistance(appState.waypoints[_gi].lat,appState.waypoints[_gi].lng,appState.waypoints[_gi+1].lat,appState.waypoints[_gi+1].lng) / appState.cruiseSpeed * 60;
+                        accumMinOffset += legSeconds(_gi) / 60;
                         _gi--;
                     }
-                    if (_gi >= 0) accumMinOffset += calculateDistance(appState.waypoints[_gi].lat,appState.waypoints[_gi].lng,appState.waypoints[_gi+1].lat,appState.waypoints[_gi+1].lng) / appState.cruiseSpeed * 60;
+                    if (_gi >= 0) accumMinOffset += legSeconds(_gi) / 60;
                 }
 
                 drawMinuteTicks({
@@ -5996,14 +6120,14 @@ var cvfrRoutesData = [
                 var heading = calculateBearing(wp1.lat, wp1.lng, wp2.lat, wp2.lng);
                 var distance = calculateDistance(wp1.lat, wp1.lng, wp2.lat, wp2.lng);
                 var altitude = getLegAltitude(i);
-                var timeHours = distance / appState.cruiseSpeed;
+                var timeHours = legSeconds(i) / 3600;
                 var totalSeconds = Math.round(timeHours * 3600);
 
                 // Accumulate time
                 if (!isMiniLeg) {
                     var j = i + 1;
                     while (j < wps.length - 1 && appState.miniWaypoints[wps[j].num]) {
-                        totalSeconds += Math.round(calculateDistance(wps[j].lat, wps[j].lng, wps[j+1].lat, wps[j+1].lng) / appState.cruiseSpeed * 3600);
+                        totalSeconds += Math.round(legSeconds(j));
                         j++;
                     }
                 }
@@ -6108,7 +6232,7 @@ var cvfrRoutesData = [
             if (idx > 0) {
                 var twp1 = appState.waypoints[idx-1], twp2 = wp;
                 var tdist = calculateDistance(twp1.lat, twp1.lng, twp2.lat, twp2.lng);
-                var tsecs = Math.round(tdist / appState.cruiseSpeed * 3600);
+                var tsecs = Math.round(legSeconds(idx - 1));
                 var tmins = Math.floor(tsecs/60), ts = tsecs%60;
                 timeStr = (tmins<10?'0':'')+tmins+':'+(ts<10?'0':'')+ts;
             }
@@ -6213,6 +6337,15 @@ var cvfrRoutesData = [
                 else if (ki > idx) newAlts[ki - 1] = appState.legAltitudes[k];
             });
             appState.legAltitudes = newAlts;
+
+            // Shift leg climbs the same way (legs idx-1 and idx merge → drop both)
+            var newClimbs = {};
+            Object.keys(appState.legClimbs).forEach(function(k) {
+                var ki = parseInt(k);
+                if (ki < idx - 1) newClimbs[ki] = appState.legClimbs[k];
+                else if (ki > idx) newClimbs[ki - 1] = appState.legClimbs[k];
+            });
+            appState.legClimbs = newClimbs;
 
             // Clear reverse route if it exists
             if (appState.reverseRoute && appState.reverseRoute.length > 0) {
@@ -6421,6 +6554,11 @@ var cvfrRoutesData = [
             }
             appState.azimuthGuides = [];
 
+            if (appState.tocMarkers) {
+                appState.tocMarkers.forEach(function(m) { appState.map.removeLayer(m); });
+            }
+            appState.tocMarkers = [];
+
             // Rebuild waypoint name labels
             if (appState.waypointLabels) {
                 appState.waypointLabels.forEach(function(lbl) { if (lbl) { if (lbl.remove) lbl.remove(); else appState.map.removeLayer(lbl); } });
@@ -6431,7 +6569,7 @@ var cvfrRoutesData = [
             for (var _ti = 0; _ti < appState.waypoints.length - 1; _ti++) {
                 var _twp1 = appState.waypoints[_ti], _twp2 = appState.waypoints[_ti+1];
                 var _tdist = calculateDistance(_twp1.lat, _twp1.lng, _twp2.lat, _twp2.lng);
-                var _tTotalSecs = Math.round(_tdist / appState.cruiseSpeed * 3600);
+                var _tTotalSecs = Math.round(legSeconds(_ti));
 
                 if (appState.miniWaypoints[_twp1.num]) {
                     // Mini WP at start: show accumulated time from last non-mini WP
@@ -6440,14 +6578,14 @@ var cvfrRoutesData = [
                     while (_fi >= 0 && appState.miniWaypoints[appState.waypoints[_fi].num]) {
                         var _fd = calculateDistance(appState.waypoints[_fi].lat, appState.waypoints[_fi].lng,
                                                      appState.waypoints[_fi+1].lat, appState.waypoints[_fi+1].lng);
-                        _accumSecs += Math.round(_fd / appState.cruiseSpeed * 3600);
+                        _accumSecs += Math.round(legSeconds(_fi));
                         _fi--;
                     }
                     // Add the original first leg of the group
                     if (_fi >= 0) {
                         var _fd0 = calculateDistance(appState.waypoints[_fi].lat, appState.waypoints[_fi].lng,
                                                       appState.waypoints[_fi+1].lat, appState.waypoints[_fi+1].lng);
-                        _accumSecs += Math.round(_fd0 / appState.cruiseSpeed * 3600);
+                        _accumSecs += Math.round(legSeconds(_fi));
                     }
                     var _tMins = Math.floor(_accumSecs / 60), _tSecs = _accumSecs % 60;
                     _wpTimeMap[_ti+1] = (_tMins < 10 ? '0' : '') + _tMins + ':' + (_tSecs < 10 ? '0' : '') + _tSecs;
@@ -6638,6 +6776,15 @@ var cvfrRoutesData = [
                                     });
                                     appState.legAltitudes = newAlts;
 
+                                    // Shift leg climbs the same way as altitudes
+                                    var newClimbs = {};
+                                    Object.keys(appState.legClimbs).forEach(function(k) {
+                                        var ki = parseInt(k);
+                                        if (ki > legIdx) newClimbs[ki + 1] = appState.legClimbs[k];
+                                        else newClimbs[ki] = appState.legClimbs[k];
+                                    });
+                                    appState.legClimbs = newClimbs;
+
                                     // Shift ident points to match the new leg numbering:
                                     // pins on later legs move up one; a pin on the split
                                     // leg itself goes to whichever half it sits on.
@@ -6741,7 +6888,7 @@ var cvfrRoutesData = [
 
                     var distance = calculateDistance(wp1.lat, wp1.lng, wp2.lat, wp2.lng);
                     var heading = calculateBearing(wp1.lat, wp1.lng, wp2.lat, wp2.lng);
-                    var timeHours = distance / appState.cruiseSpeed;
+                    var timeHours = legSeconds(i) / 3600;
                     var totalMinutes = Math.round(timeHours * 60);
                     var totalMinutesForMarkers = Math.floor(timeHours * 60);
                     var hours = Math.floor(totalMinutes / 60);
@@ -6758,7 +6905,7 @@ var cvfrRoutesData = [
                         while (j < appState.waypoints.length - 1 && appState.miniWaypoints[appState.waypoints[j].num]) {
                             var mDist = calculateDistance(appState.waypoints[j].lat, appState.waypoints[j].lng,
                                                           appState.waypoints[j+1].lat, appState.waypoints[j+1].lng);
-                            extraSecs += Math.round(mDist / appState.cruiseSpeed * 3600);
+                            extraSecs += Math.round(legSeconds(j));
                             j++;
                         }
                         if (extraSecs > 0) {
@@ -6927,10 +7074,15 @@ var cvfrRoutesData = [
                         legLabel.on('click', function(e) {
                             L.DomEvent.stopPropagation(e);
                             var currentAlt = getLegAltitude(legIdx);
+                            var existingClimb = getLegClimb(legIdx);
+                            var cFrom = existingClimb ? existingClimb.fromAlt : (legIdx > 0 ? getLegAltitude(legIdx - 1) : 0);
+                            var cTo   = existingClimb ? existingClimb.toAlt   : currentAlt;
+                            var cIas  = existingClimb ? existingClimb.climbIAS : (appState.lastClimbIAS || '');
+                            var cRoc  = existingClimb ? existingClimb.roc      : (appState.lastClimbRoc || '');
                             var popupHtml =
-                                '<div style="text-align:center; min-width:140px;">' +
+                                '<div style="text-align:center; min-width:190px;">' +
                                 '<strong>Leg ' + (legIdx + 1) + ' Altitude</strong><br>' +
-                                '<div style="display:flex; align-items:center; gap:4px; margin-top:6px;">' +
+                                '<div style="display:flex; align-items:center; gap:4px; margin-top:6px; justify-content:center;">' +
                                 '<input id="leg-alt-input-' + legIdx + '" type="number" value="' + currentAlt + '" min="0" max="50000" step="100" ' +
                                 'style="width:80px; padding:3px 5px; border:1px solid #0066cc; border-radius:4px; font-size:13px; font-weight:bold;" ' +
                                 'onkeydown="if(event.key===\'Enter\'){updateLegAltitude(' + legIdx + ',this.value);appState.map.closePopup();}else if(event.key===\'Escape\'){appState.map.closePopup();}">' +
@@ -6938,6 +7090,20 @@ var cvfrRoutesData = [
                                 '</div>' +
                                 '<button onclick="updateLegAltitude(' + legIdx + ', document.getElementById(\'leg-alt-input-' + legIdx + '\').value); appState.map.closePopup();" ' +
                                 'style="margin-top:6px; padding:4px 12px; background:#0066cc; color:white; border:none; border-radius:4px; cursor:pointer; font-size:12px;">Save</button>' +
+                                '<div style="margin-top:10px; padding-top:8px; border-top:1px solid #ddd; text-align:left;">' +
+                                  '<strong style="font-size:12px;">Climb on this leg</strong>' +
+                                  (existingClimb ? '<span style="font-size:10px;color:#b8006b;font-weight:600;"> • active</span>' : '') +
+                                  '<div style="display:grid; grid-template-columns:auto 60px; gap:3px 6px; align-items:center; margin-top:5px; font-size:11px;">' +
+                                    '<label>From (ft)</label><input id="leg-climb-from-' + legIdx + '" type="number" value="' + cFrom + '" style="width:56px;padding:2px 4px;">' +
+                                    '<label>To (ft)</label><input id="leg-climb-to-' + legIdx + '" type="number" value="' + cTo + '" style="width:56px;padding:2px 4px;">' +
+                                    '<label>Climb speed (kt)</label><input id="leg-climb-ias-' + legIdx + '" type="number" value="' + cIas + '" style="width:56px;padding:2px 4px;">' +
+                                    '<label>Climb rate (fpm)</label><input id="leg-climb-roc-' + legIdx + '" type="number" value="' + cRoc + '" style="width:56px;padding:2px 4px;">' +
+                                  '</div>' +
+                                  '<div style="display:flex; gap:6px; margin-top:6px;">' +
+                                    '<button onclick="applyLegClimb(' + legIdx + ')" style="flex:1; padding:4px; background:#b8006b; color:#fff; border:none; border-radius:4px; cursor:pointer; font-size:11px; font-weight:600;">Set climb + TOC</button>' +
+                                    '<button onclick="clearLegClimb(' + legIdx + ')" style="padding:4px 8px; background:#6c757d; color:#fff; border:none; border-radius:4px; cursor:pointer; font-size:11px;">No climb</button>' +
+                                  '</div>' +
+                                '</div>' +
                                 '</div>';
                             L.popup({ closeButton: true, autoClose: true, offset: [0, 0] })
                                 .setLatLng(e.latlng)
@@ -6967,14 +7133,14 @@ var cvfrRoutesData = [
                         while (_gi >= 0 && appState.miniWaypoints[appState.waypoints[_gi].num]) {
                             var _gd = calculateDistance(appState.waypoints[_gi].lat, appState.waypoints[_gi].lng,
                                                          appState.waypoints[_gi+1].lat, appState.waypoints[_gi+1].lng);
-                            accumMinOffset += _gd / appState.cruiseSpeed * 60;
+                            accumMinOffset += legSeconds(_gi) / 60;
                             _gi--;
                         }
                         // Add first leg of group
                         if (_gi >= 0) {
                             var _gd0 = calculateDistance(appState.waypoints[_gi].lat, appState.waypoints[_gi].lng,
                                                           appState.waypoints[_gi+1].lat, appState.waypoints[_gi+1].lng);
-                            accumMinOffset += _gd0 / appState.cruiseSpeed * 60;
+                            accumMinOffset += legSeconds(_gi) / 60;
                         }
                     }
 
@@ -6991,6 +7157,7 @@ var cvfrRoutesData = [
 
             refreshIdentPointLegGeometry();
             drawAzimuthGuides();
+            drawTocMarkers();
 
             // NOTAM route-proximity (distance/intersects/altitude-overlap)
             // depends on the current route, so it needs to be recomputed
@@ -7085,13 +7252,15 @@ var cvfrRoutesData = [
         function updateStats() {
             var t = translations[appState.language];
             var totalDistance = 0;
+            var totalTimeSecs = 0;
             for (var i = 0; i < appState.waypoints.length - 1; i++) {
                 var wp1 = appState.waypoints[i];
                 var wp2 = appState.waypoints[i + 1];
                 totalDistance += calculateDistance(wp1.lat, wp1.lng, wp2.lat, wp2.lng);
+                totalTimeSecs += legSeconds(i);
             }
-            
-            var totalTimeHours = totalDistance / appState.cruiseSpeed;
+
+            var totalTimeHours = totalTimeSecs / 3600;
             var hours = Math.floor(totalTimeHours);
             var minutes = Math.round((totalTimeHours - hours) * 60);
             
@@ -7265,6 +7434,7 @@ var cvfrRoutesData = [
             appState.legLabels = [];
             appState.arrivalLabelPositions = {};
             appState.legAltitudes = {};
+            appState.legClimbs = {};
             if (appState.routeLine) {
                 removeRouteLine();
                 appState.routeLine = null;
@@ -8719,7 +8889,7 @@ var cvfrRoutesData = [
                 
                 var distance = calculateDistance(wp1.lat, wp1.lng, wp2.lat, wp2.lng);
                 var heading = calculateBearing(wp1.lat, wp1.lng, wp2.lat, wp2.lng);
-                var timeHours = distance / appState.cruiseSpeed;
+                var timeHours = legSeconds(i) / 3600;
                 var fuel = timeHours * appState.fuelFlow;
                 
                 totalDistance += distance;
@@ -9071,7 +9241,7 @@ var cvfrRoutesData = [
                         var wp2 = appState.waypoints[idx + 1];
                         var distance = calculateDistance(wp.lat, wp.lng, wp2.lat, wp2.lng);
                         var heading = calculateBearing(wp.lat, wp.lng, wp2.lat, wp2.lng);
-                        var timeHours = distance / appState.cruiseSpeed;
+                        var timeHours = legSeconds(idx) / 3600;
                         var hours = Math.floor(timeHours);
                         var minutes = Math.round((timeHours - hours) * 60);
                         
@@ -9083,12 +9253,14 @@ var cvfrRoutesData = [
                 document.getElementById('print-waypoints').innerHTML = printWP;
                 
                 var totalDistance = 0;
+                var totalTimeSecs = 0;
                 for (var i = 0; i < appState.waypoints.length - 1; i++) {
                     var wp1 = appState.waypoints[i];
                     var wp2 = appState.waypoints[i + 1];
                     totalDistance += calculateDistance(wp1.lat, wp1.lng, wp2.lat, wp2.lng);
+                    totalTimeSecs += legSeconds(i);
                 }
-                var totalTimeHours = totalDistance / appState.cruiseSpeed;
+                var totalTimeHours = totalTimeSecs / 3600;
                 var hours = Math.floor(totalTimeHours);
                 var minutes = Math.round((totalTimeHours - hours) * 60);
                 var fuelRequired = totalTimeHours * appState.fuelFlow;
@@ -9481,6 +9653,7 @@ var cvfrRoutesData = [
                 magVar: appState.magVar,
                 circleRadius: appState.circleRadius,
                 legAltitudes: appState.legAltitudes,
+                legClimbs: appState.legClimbs,
                 defaultAltitude: appState.defaultAltitude,
                 tickInterval: appState.tickInterval,
                 labelInterval: appState.labelInterval,
@@ -9662,6 +9835,7 @@ var cvfrRoutesData = [
             appState.magVar         = plan.magVar !== undefined ? plan.magVar : -5;
             appState.circleRadius   = plan.circleRadius   || 0.3;
             appState.legAltitudes   = plan.legAltitudes   || {};
+            appState.legClimbs      = plan.legClimbs      || {};
             appState.defaultAltitude = plan.defaultAltitude !== undefined ? plan.defaultAltitude : 400;
             appState.tickInterval   = plan.tickInterval   || 1;
             appState.labelInterval  = plan.labelInterval  || 1;

@@ -7526,6 +7526,11 @@ var cvfrRoutesData = [
             // Close screenshot modal but keep sidebar hidden
             closeScreenshotModal(true);
 
+            // Default the map to a consistent zoom (12) when entering the export
+            // tool, so the capture rectangle starts at a predictable scale; the
+            // in-tool +/- buttons still let the user adjust from there.
+            appState.map.setZoom(12, { animate: false });
+
             var isLandscape = (window.captureOrientation === 'landscape');
 
             var mapContainer = document.getElementById('map');

@@ -4400,23 +4400,27 @@ var cvfrRoutesData = [
                     if (distFromStart < radiusNm || distFromEnd < radiusNm) continue;
                 }
 
-                // Show accumulative minute label — only on even minutes,
+                // Show accumulative minute label — only on odd minutes,
                 // regardless of tickInterval (which controls which minutes
                 // get a tick at all).
                 var displayMin = Math.round(accumMinOffset + min);
-                var showLabel = (displayMin % 2 === 0);
+                var showLabel = (displayMin % 2 === 1);
                 var labelHtml = showLabel
-                    ? '<div style="transform: rotate(' + heading + 'deg); color: #0066cc; font-weight: bold; font-size: ' + appState.labelFontSize + 'px; text-shadow: 1px 1px 2px white, -1px -1px 2px white, 1px -1px 2px white, -1px 1px 2px white;">' + displayMin + '</div>'
+                    ? '<div style="width:50px;text-align:center;transform: rotate(' + heading + 'deg); color: #0066cc; font-weight: bold; font-size: ' + appState.labelFontSize + 'px; text-shadow: 1px 1px 2px white, -1px -1px 2px white, 1px -1px 2px white, -1px 1px 2px white;">' + displayMin + '</div>'
                     : '';
 
-                // Labeled (even-minute) ticks are drawn slightly bigger so
+                // Labeled (odd-minute) ticks are drawn slightly bigger so
                 // they stand out from the plain unlabeled minute ticks.
                 var tickHalfLen = showLabel ? 0.008 : 0.005;
                 var tickWeight = showLabel ? appState.lineWidth + 1 : appState.lineWidth;
 
-                // Place the number on the right side of the line, right at
-                // the end of the tick with minimal gap.
-                var labelOffsetDist = tickHalfLen + 0.001;
+                // Place the number on the right side of the line (right side
+                // from the route's point of view, i.e. heading + 90), centred
+                // on a point past the end of the tick so the digits sit fully
+                // on that side and never straddle back across the line — which
+                // they did when the label box was left-anchored and always grew
+                // eastward regardless of the leg's direction.
+                var labelOffsetDist = tickHalfLen + 0.006;
                 var labelLat = lat + labelOffsetDist * Math.cos((heading + 90) * Math.PI / 180);
                 var labelLng = lng + labelOffsetDist * Math.sin((heading + 90) * Math.PI / 180);
 
@@ -4425,7 +4429,7 @@ var cvfrRoutesData = [
                         className: 'time-label',
                         html: labelHtml,
                         iconSize: [50, 20],
-                        iconAnchor: [2, 10]
+                        iconAnchor: [25, 10]
                     })
                 }).addTo(appState.map);
                 opts.targetArray.push(labelMarker);

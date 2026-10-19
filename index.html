@@ -7886,18 +7886,15 @@ var cvfrRoutesData = [
 
                 // Creates/updates a nautical-mile scale bar in the bottom-left
                 // corner of the printed page so distances can be measured off
-                // the paper. Width is derived from the actual print zoom and the
-                // page-centre latitude (NM/px = 1852 / metres-per-px), then
-                // snapped to a round NM length. Called per page, since the
-                // latitude (and so the scale) differs slightly between pages.
+                // the paper. Fixed at 8 NM total (4 × 2 NM segments); its pixel
+                // width is derived from the actual print zoom and the page-centre
+                // latitude (NM/px = 1852 / metres-per-px). Called per page, since
+                // the latitude (and so the scale) differs slightly between pages.
                 function buildPrintScaleBar(centerLat, zoom, pageW) {
                     var mpp = 40075016.686 * Math.cos(centerLat * Math.PI / 180) / Math.pow(2, zoom + 8);
                     var pxPerNm = 1852 / mpp;
-                    var maxPx = Math.min(240, pageW * 0.30);
-                    var nice = [1,2,3,5,10,15,20,25,30,50,75,100,150,200,300,400,500];
-                    var totalNm = nice[0];
-                    for (var i = 0; i < nice.length; i++) { if (nice[i] * pxPerNm <= maxPx) totalNm = nice[i]; }
-                    var segs = (totalNm % 5 === 0) ? 5 : (totalNm % 4 === 0 ? 4 : (totalNm % 3 === 0 ? 3 : (totalNm % 2 === 0 ? 2 : 1)));
+                    var totalNm = 8;
+                    var segs = 4;
                     var segNm = totalNm / segs;
                     var segPx = segNm * pxPerNm;
                     var totalPx = totalNm * pxPerNm;

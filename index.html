@@ -4400,16 +4400,16 @@ var cvfrRoutesData = [
                     if (distFromStart < radiusNm || distFromEnd < radiusNm) continue;
                 }
 
-                // Show accumulative minute label — only on odd minutes,
+                // Show accumulative minute label — only on even minutes,
                 // regardless of tickInterval (which controls which minutes
                 // get a tick at all).
                 var displayMin = Math.round(accumMinOffset + min);
-                var showLabel = (displayMin % 2 === 1);
+                var showLabel = (displayMin % 2 === 0);
                 var labelHtml = showLabel
                     ? '<div style="width:50px;text-align:center;transform: rotate(' + heading + 'deg); color: #0066cc; font-weight: bold; font-size: ' + appState.labelFontSize + 'px; text-shadow: 1px 1px 2px white, -1px -1px 2px white, 1px -1px 2px white, -1px 1px 2px white;">' + displayMin + '</div>'
                     : '';
 
-                // Labeled (odd-minute) ticks are drawn slightly bigger so
+                // Labeled (even-minute) ticks are drawn slightly bigger so
                 // they stand out from the plain unlabeled minute ticks.
                 var tickHalfLen = showLabel ? 0.008 : 0.005;
                 var tickWeight = showLabel ? appState.lineWidth + 1 : appState.lineWidth;

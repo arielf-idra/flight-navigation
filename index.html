@@ -7707,14 +7707,21 @@ var cvfrRoutesData = [
             var mapW = mapContainer.offsetWidth;
             var mapH = mapContainer.offsetHeight;
 
-            // Paper ratio is always ~1.4142 (both A4 and A3 share the same ratio)
+            // Paper ratio is always ~1.4142 (both A4 and A3 share the same ratio).
+            // A4 and A3 are captured at the SAME map zoom (12), so the only way A3
+            // covers more ground is a bigger selection rectangle. A3 fills more of
+            // the viewport than A4; it's still capped by the screen, so A3 covers
+            // the most ground that fits at this zoom (~1.4× A4's area) rather than
+            // the full 2× of true A3 paper — reaching that would require zooming
+            // out, which the user explicitly didn't want.
             var ratio = paperRatio;
+            var rectFill = (paperSize === 'A3') ? 0.95 : 0.80;
             var rectW, rectH;
             if (isLandscape) {
-                rectH = Math.round(Math.min(mapH, mapW / ratio) * 0.80);
+                rectH = Math.round(Math.min(mapH, mapW / ratio) * rectFill);
                 rectW = Math.round(rectH * ratio);
             } else {
-                rectW = Math.round(Math.min(mapW, mapH / ratio) * 0.80);
+                rectW = Math.round(Math.min(mapW, mapH / ratio) * rectFill);
                 rectH = Math.round(rectW * ratio);
             }
 
@@ -7988,12 +7995,13 @@ var cvfrRoutesData = [
                 document.getElementById('a4Portrait').style.borderColor  = landscape ? 'rgba(255,255,255,0.3)' : '#fff';
                 document.getElementById('a4Landscape').style.background = landscape ? '#0066cc' : 'transparent';
                 document.getElementById('a4Landscape').style.borderColor = landscape ? '#fff' : 'rgba(255,255,255,0.3)';
-                // Rebuild rect dimensions
+                // Rebuild rect dimensions (keep the per-paper fill factor so A3
+                // stays larger than A4 after an orientation switch too)
                 if (landscape) {
-                    rectH = Math.round(Math.min(mapH, mapW / 1.4142) * 0.80);
+                    rectH = Math.round(Math.min(mapH, mapW / 1.4142) * rectFill);
                     rectW = Math.round(rectH * 1.4142);
                 } else {
-                    rectW = Math.round(Math.min(mapW, mapH / 1.4142) * 0.80);
+                    rectW = Math.round(Math.min(mapW, mapH / 1.4142) * rectFill);
                     rectH = Math.round(rectW * 1.4142);
                 }
                 // Re-centre rect and update label

@@ -7696,10 +7696,14 @@ var cvfrRoutesData = [
             // Close screenshot modal but keep sidebar hidden
             closeScreenshotModal(true);
 
-            // Default the map to a consistent zoom (12) when entering the export
-            // tool, so the capture rectangle starts at a predictable scale; the
+            // Default the map to a consistent zoom when entering the export tool,
+            // so the capture rectangle starts at a predictable scale. A3 opens half
+            // a zoom level further out (11.5) than A4 (12): with the same-size
+            // rectangle that frames √2× more ground per side (2× area), shown
+            // smaller on screen so it all fits — yet because the A3 page is also
+            // √2× bigger per side, the *printed* scale matches A4 at zoom 12. The
             // in-tool +/- buttons still let the user adjust from there.
-            appState.map.setZoom(12, { animate: false });
+            appState.map.setZoom((paperSize === 'A3') ? 11.5 : 12, { animate: false });
 
             var isLandscape = (window.captureOrientation === 'landscape');
 
@@ -7707,15 +7711,15 @@ var cvfrRoutesData = [
             var mapW = mapContainer.offsetWidth;
             var mapH = mapContainer.offsetHeight;
 
-            // Paper ratio is always ~1.4142 (both A4 and A3 share the same ratio).
-            // A4 and A3 are captured at the SAME map zoom (12), so the only way A3
-            // covers more ground is a bigger selection rectangle. A3 fills more of
-            // the viewport than A4; it's still capped by the screen, so A3 covers
-            // the most ground that fits at this zoom (~1.4× A4's area) rather than
-            // the full 2× of true A3 paper — reaching that would require zooming
-            // out, which the user explicitly didn't want.
+            // Paper ratio is always ~1.4142 (both A4 and A3 share the same ratio),
+            // so the selection rectangle is the same size for both. A3 covers more
+            // ground by opening the screen half a zoom level further out (see the
+            // setZoom above): the same rectangle then frames √2× more ground per
+            // side (2× area), the on-screen view is just shown smaller so the whole
+            // area fits, and at print those bounds fill the 2×-bigger A3 page — so
+            // the printed scale/detail comes out identical to A4 at zoom 12.
             var ratio = paperRatio;
-            var rectFill = (paperSize === 'A3') ? 0.95 : 0.80;
+            var rectFill = 0.80;
             var rectW, rectH;
             if (isLandscape) {
                 rectH = Math.round(Math.min(mapH, mapW / ratio) * rectFill);

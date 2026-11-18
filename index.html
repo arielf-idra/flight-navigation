@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
-    <title>Flight Navigation Tool v1.0</title>
+    <title>Flight Navigation Tool v1.1</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css" />
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -30,7 +30,7 @@
         
         <div class="sidebar">
             <div class="panel" style="text-align: center; padding: 1.25rem 1.5rem; border-top: 3px solid var(--accent);">
-                <h1 style="margin: 0 0 0.375rem 0; font-size: 1.375rem; font-weight: 700; color: var(--text); letter-spacing: -0.01em;">🛩️ Flight Navigation Tool <span style="font-size: 0.85rem; font-weight: 500; color: var(--text-muted);">v1.0</span></h1>
+                <h1 style="margin: 0 0 0.375rem 0; font-size: 1.375rem; font-weight: 700; color: var(--text); letter-spacing: -0.01em;">🛩️ Flight Navigation Tool <span style="font-size: 0.85rem; font-weight: 500; color: var(--text-muted);">v1.1</span></h1>
             </div>
 
             <div class="dashboard-tabs" id="dashboardTabs">
@@ -610,7 +610,7 @@
         // script runs; applyAppIdentity() (called from the init sequence)
         // overwrites both from these constants so they never drift apart.
         var APP_NAME = 'Flight Navigation Tool';
-        var APP_VERSION = 'v1.0';
+        var APP_VERSION = 'v1.1';
 
         function applyAppIdentity() {
             document.title = APP_NAME + ' ' + APP_VERSION;
@@ -3056,12 +3056,33 @@ var cvfrRoutesData = [
 
             var CHANGELOG = [
                 {
-                    version: APP_VERSION,
+                    version: 'v1.0',
                     icon: '&#128640;',
                     title: 'Welcome',
                     items: [
                         'A tabbed dashboard (Route / Layers / NOTAMs / Data / Settings / Plans / About) keeps every tool close at hand without a long scroll',
                         'Draw routes, manage waypoints, track NOTAMs, and export flight plans — all from one map-first workspace'
+                    ]
+                },
+                {
+                    version: 'v1.1',
+                    icon: '&#9981;',
+                    title: 'Fuel & timing',
+                    items: [
+                        'Fuel in US gallons or litres: pick the unit next to Fuel Flow (Data tab). Gallons is the default; plans remember their unit, and older plans open in litres',
+                        'Climb legs: set from/to altitude, climb speed and rate in a leg\'s popup to get a top-of-climb (TOC) marker and a climb-adjusted leg time (defaults 70 kt / 700 fpm)',
+                        'New "Hide/Show Accum. Time" button (Layers tab) for the total elapsed time shown in brackets on each waypoint label'
+                    ]
+                },
+                {
+                    version: 'v1.1',
+                    icon: '&#128506;',
+                    title: 'Map & export',
+                    items: [
+                        'Optional ±45° azimuth guide lines from each waypoint (Layers tab)',
+                        'Exported A4/A3 maps now include a nautical-mile scale bar and default to zoom 12; A3 covers twice the A4 area at the same print scale',
+                        'Ident points now stay attached to the correct leg after reordering waypoints, Split Leg, or Remove',
+                        'The LSA/AZM reporting points layer has been removed'
                     ]
                 }
                 ];
@@ -3071,7 +3092,7 @@ var cvfrRoutesData = [
 
             // Determine which entries to show
             // force = show all; otherwise show only entries newer than last seen
-            var versionOrder = [APP_VERSION];
+            var versionOrder = ['v1.0', 'v1.1']; // oldest → newest; append each new APP_VERSION
             var seenIdx = versionOrder.indexOf(seen);
             var entriesToShow = force
                 ? CHANGELOG

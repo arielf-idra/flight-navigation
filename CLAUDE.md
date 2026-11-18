@@ -9,8 +9,14 @@ chart-image overlay anymore (that feature, and the two JPGs it used, were remove
 
 ## Standing instructions
 
-- **Don't push.** Commit locally only when explicitly asked; never `git push` unless
-  told to.
+- **Commit and push as we go** (user instruction, Nov 2026; this replaces the old
+  "don't push" rule). Once a change is verified, commit it as its own focused commit
+  and `git push` to `main`. Every commit has gone straight to `main`. The repo is
+  **public** and GitHub Pages serves `main` live at
+  https://arielf-idra.github.io/flight-navigation/, so every push deploys
+  immediately. Only push verified work, and never force-push.
+- **Update the docs with every change**: this file, plus the in-app What's New
+  changelog for anything user-visible (see "Versioning & What's New" below).
 - **Don't hardcode real-world aviation/navigation data from memory** — coordinates,
   frequencies, runway headings, route connectivity, etc. This data is safety-critical.
   Only add it from a source the user supplies, or a public source you've found and the
@@ -24,7 +30,7 @@ chart-image overlay anymore (that feature, and the two JPGs it used, were remove
 
 ## Architecture
 
-- **Global `appState` object** (~line 540) holds all mutable state: waypoints, every
+- **Global `appState` object** (~line 512) holds all mutable state: waypoints, every
   map layer's marker/line arrays, visibility flags, calibration data, etc.
 - **Toggle-pattern for map layers**: each layer has `initX()` (builds markers/lines
   from that layer's data table, pushes them into an `appState.x` array) and
@@ -43,11 +49,14 @@ chart-image overlay anymore (that feature, and the two JPGs it used, were remove
      to the map when `xVisible` is true on load (a flag alone does nothing — several
      real bugs this session were exactly this: flag was `true`, nothing rendered,
      because this block didn't exist yet).
-- **Duplicate function declarations exist in this file** (e.g. `initAirspaceZones`,
-  `toggleAirspace`, `showPreview`, `buildColorSwatches` are each declared twice).
-  Non-strict JS lets the later declaration silently win. If you're editing one of
-  these and changes don't seem to take effect, grep for the function name first —
-  you may be editing the one that gets shadowed.
+- **Watch for duplicate function declarations.** The old top-level duplicates
+  (`initAirspaceZones`, `toggleAirspace`, `showPreview`, `buildColorSwatches`) have
+  since been removed, and as of Nov 2026 every top-level function name is unique.
+  Names that repeat (`mm`/`mu`, `mmR`/`muR`, `showSelection`/`hideSelection`,
+  `onMove`/`onUp`, `destPoint`, `cleanup`) are local helpers nested inside other
+  functions, so they don't shadow each other. Non-strict JS lets a later top-level
+  declaration silently win, so if an edit doesn't seem to take effect, grep for
+  `function name` first, and don't introduce a new top-level duplicate.
 - **Coordinate systems**: `dCoord(wp)` / `toDisplayLatLng()` / `calibrateDisplayToReal()`
   are kept as identity pass-throughs (display coords == real coords now that the
   calibrated-chart-overlay feature is gone) rather than inlined, because dozens of
@@ -104,6 +113,51 @@ touching it. Brief map:
   user-supplied PAMAT/AIP-sourced JSON that explicitly self-describes as
   "reference dataset only... do not use as a substitute for current PAMAT/AIP/NOTAM."
   Most entries still have no heading at all and fall back to a fixed 90°.
+- The LSA/AZM reporting-points layer (`lsaPointsData`, 205 points) was removed
+  entirely in Nov 2026 at the user's request. Don't re-add it. CVFR point
+  rotation, which used to share LSA's rotation function, now lives in
+  `refreshCVFRPointRotation()`.
+- `frequenciesData` — map labels for radio frequencies (Hebrew name plus frequency at
+  a lat/lng). **It has no provenance comment block**, so its source is unknown.
+  Don't extend or trust it until the user confirms where it came from, then add a
+  comment block. Toggle-controlled (`frequenciesVisible`, default off).
+
+## Route timing, labels & fuel
+
+- **`legSeconds(i)` is the single source of truth for a leg's duration.** It uses
+  cruise speed, or, if the leg has a climb (`appState.legClimbs[i]`, set from the
+  leg popup), climb ground speed up to top-of-climb and then cruise. Every time
+  readout (leg boxes, waypoint labels, totals, prints, fuel) goes through it, so
+  don't reintroduce inline `distance / cruiseSpeed`. No wind model.
+- **Waypoint labels** show the leg time, then the accumulated time in brackets,
+  e.g. `06:14 (13:08)`. `computeAccumulatedTimeMap()` builds the accumulated
+  values. The brackets are controlled by `appState.accumTimeVisible` ("Hide/Show
+  Accum. Time" in Layers, default on). Like the other label toggles (distance,
+  drift lines, ±45° guides), it is **not** persisted and resets on load.
+- **Fuel** = `legSeconds` × fuel flow. Taxi, alternate and climb fuel-flow
+  differences aren't modelled. The route printout adds a fixed 30-minute reserve.
+  - `appState.fuelFlow` is **always stored in L/hr**, whatever unit is shown.
+    `appState.fuelUnit` (`'gal'` = US gallons, the default, or `'L'`) only affects
+    input and display. Convert with `fuelFromLitres()` / `fuelToLitres()`
+    (1 US gal = 3.785411784 L). Format with `fuelUnitShort()`, `fuelUnitLong()`
+    and `formatFuelFlow()`. `syncFuelFlowInput()` pushes state into the Data-tab
+    input, selector and label. Never write `fuelFlow` into the input directly.
+  - `fuelUnit` is saved in settings and **with each flight plan**. A plan with no
+    `fuelUnit` predates the option ("the liters days") and loads in litres. Its
+    `fuelFlow` was L/hr all along, so its value is unchanged.
+
+## Versioning & What's New
+
+`APP_NAME` / `APP_VERSION` (~line 612) drive the title, header, watermark, GPX
+export and Contact form. The `<title>` tag and the header's static HTML carry a
+hardcoded copy that must be bumped too. The What's New modal
+(`showWhatsNewIfNeeded()`) is **only opened from the About tab's "🆕 What's New"
+button** (`force=true`, which lists every `CHANGELOG` entry grouped by version).
+Nothing calls it on page load, and that has been true for the repo's whole
+history. Its "show only entries newer than `flightNavToolLastSeenVersion`" branch
+is therefore dormant. To document a user-visible change: add a `CHANGELOG` entry
+for the current version, or bump `APP_VERSION` (plus the two static copies) and
+append the new version to `versionOrder`.
 
 ## NOTAM overlay
 
@@ -171,15 +225,28 @@ There's no test suite. The established pattern for verifying any change:
    ```
 2. **Serve locally** (a static file server rooted at the project dir; port 8123 has
    been the convention) and drive it with **Playwright** (chromium) to click
-   buttons/toggles, inspect `appState`, and screenshot the result. A "What's New"
-   modal (`#whatsNewContinue`) blocks interaction on first load — dismiss it first.
-   Note: some toggle states persist across page loads (localStorage), so a fresh
+   buttons/toggles, inspect `appState`, and screenshot the result. (The "What's
+   New" modal no longer opens on load; it only opens from the About tab, so no
+   dismissal step is needed.) Note: some toggle states persist across page loads (localStorage), so a fresh
    Playwright browser context isn't always a true "first visit" — check
    `appState.xVisible` directly rather than assuming a load-time default.
 3. For anything geometry/coordinate related, actually look at a screenshot (or
    compare against a real chart crop) rather than trusting the numbers alone —
    several bugs this session (90°-off rotation, wrong-panel transform, etc.) were
    only caught by eyeballing rendered output.
+
+Practical gotchas:
+- **`index.html` has mixed line endings**: mostly CRLF, but some HTML blocks are
+  LF, and a few lines have trailing spaces. Scripted find/replace must accept
+  either `\n` or `\r\n` and not assume trailing whitespace is absent.
+- **Playwright on this machine**: there's no project `package.json`. Install
+  `playwright` into the session scratchpad and launch with
+  `executablePath` pointed at the already-downloaded
+  `~/AppData/Local/ms-playwright/chromium-*/chrome-win64/chrome.exe`. The npm
+  package's pinned browser revision usually isn't downloaded. `addWaypoint(lat, lng)`
+  takes two numbers, not an `L.latLng`.
+- One console 404 on load is pre-existing (it's not an app fetch, most likely the
+  favicon), so ignore it when checking for regressions.
 
 ## Known gaps / follow-ups
 

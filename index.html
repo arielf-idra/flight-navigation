@@ -57,7 +57,6 @@
                     <button class="btn-secondary" id="addCoordBtn">Add by Coords</button>
                 </div>
                 <div class="button-group">
-                    <button class="btn-secondary" id="toggleDirectionBtn" style="display: none;">Show Return</button>
                     <button class="btn-secondary" id="addWindTableBtn2" onclick="startAddingWindTable()" style="width: 100%;">Add Wind Table</button>
                 </div>
 
@@ -432,7 +431,6 @@
             waypointLabelOffsets: {},
             miniWaypoints: {},
             waypointLabelFontSize: 11,
-            legTimeVisible: true,
             accumTimeVisible: true, // total elapsed time "(MM:SS)" on each waypoint label
             waypointLabelStyles: {},
             timeMarkers: [],
@@ -477,8 +475,6 @@
             textBoxFontSize: 14,
             infoBoxOpacity: 0.70,
             miniWpLabelOpacity: 0.70,
-            reverseRoute: [],
-            reverseRouteVisible: true,
             showOriginalRoute: true,
             textBoxes: [],
             windTables: [],
@@ -2451,24 +2447,13 @@ var cvfrRoutesData = [
             // WP label rotationDelta is heading-relative, so no change needed when reversing
             // (heading changes automatically, rotationDelta stays same)
 
-            // Clear reverse route state
-            appState.reverseRoute = [];
-            appState.reverseRouteVisible = false;
-
             // Rebuild the route with reversed waypoints
             updateRoute();
             updateWaypointsList();
             updateStats();
             setTimeout(refreshCVFRPointRotation, 150);
-
-            var btn = document.getElementById('toggleDirectionBtn');
-            if (btn) btn.style.display = 'none';
         }
 
-
-        function toggleDirectionVisibility() {
-            // No longer used - reverse route is now applied directly
-        }
 
 
         function startAddingTextBox() {
@@ -3428,7 +3413,6 @@ var cvfrRoutesData = [
             document.getElementById('clearBtn').addEventListener('click', clearRoute);
             document.getElementById('addCoordBtn').addEventListener('click', addWaypointByCoordinates);
             document.getElementById('reverseRouteBtn').addEventListener('click', generateReverseRoute);
-            document.getElementById('toggleDirectionBtn').addEventListener('click', toggleDirectionVisibility);
             document.getElementById('addTextBoxBtn2').addEventListener('click', startAddingTextBox);
             document.getElementById('toggleWaypointsBtn').addEventListener('click', toggleWaypointsList);
             document.getElementById('saveBtn').addEventListener('click', savePlan);
@@ -4404,7 +4388,7 @@ var cvfrRoutesData = [
                 'transform:rotate(' + rot + 'deg);transform-origin:center center;box-sizing:border-box;' +
                 (isMiniWp ? 'opacity:' + (appState.miniWpLabelOpacity !== undefined ? appState.miniWpLabelOpacity : 0.70) + ';' : '') + '">' +
                 (showName ? '<div style="font-size:' + nameFontSize + 'px;font-weight:700;">' + wp.name + '</div>' : '') +
-                (showTime && timeStr && appState.legTimeVisible !== false ? '<div style="font-size:' + timeFontSize + 'px;font-weight:600;opacity:0.8;">' + timeStr +
+                (showTime && timeStr ? '<div style="font-size:' + timeFontSize + 'px;font-weight:600;opacity:0.8;">' + timeStr +
                     (accumTimeStr && appState.accumTimeVisible !== false ? ' <span style="opacity:0.65;font-weight:500;">(' + accumTimeStr + ')</span>' : '') +
                     '</div>' : '') +
                 fobHtml +
@@ -4683,16 +4667,6 @@ var cvfrRoutesData = [
                 }).addTo(appState.map);
                 appState.tocMarkers.push(marker);
             });
-        }
-
-        function toggleLegTime() {
-            appState.legTimeVisible = !appState.legTimeVisible;
-            var btn = document.getElementById('legTimeToggleBtn');
-            if (btn) {
-                btn.textContent = appState.legTimeVisible ? 'Hide Leg Time' : 'Show Leg Time';
-                btn.className = appState.legTimeVisible ? 'btn-primary' : 'btn-secondary';
-            }
-            updateRoute();
         }
 
         // Show/hide the accumulated (total elapsed) time shown in brackets after
@@ -5066,18 +5040,6 @@ var cvfrRoutesData = [
                 else if (ki > idx) newClimbs[ki - 1] = appState.legClimbs[k];
             });
             appState.legClimbs = newClimbs;
-
-            // Clear reverse route if it exists
-            if (appState.reverseRoute && appState.reverseRoute.length > 0) {
-                appState.reverseRoute.forEach(function(item) {
-                    if (item.line) appState.map.removeLayer(item.line);
-                    if (item.label) appState.map.removeLayer(item.label);
-                    item.timeMarkers.forEach(function(m) { if (m.remove) m.remove(); else appState.map.removeLayer(m); });
-                });
-                appState.reverseRoute = [];
-                var btn = document.getElementById('toggleDirectionBtn');
-                if (btn) btn.style.display = 'none';
-            }
 
             updateRoute();
             updateWaypointsList();
@@ -6257,22 +6219,6 @@ var cvfrRoutesData = [
             appState.previewTimeMarkers.forEach(function(m) { appState.map.removeLayer(m); });
             appState.previewTimeMarkers = [];
             
-            // Clear reverse route
-            if (appState.reverseRoute) {
-                appState.reverseRoute.forEach(function(item) {
-                    if (item.line) appState.map.removeLayer(item.line);
-                    if (item.label) appState.map.removeLayer(item.label);
-                    item.timeMarkers.forEach(function(m) { if (m.remove) m.remove(); else appState.map.removeLayer(m); });
-                });
-                appState.reverseRoute = [];
-            }
-            
-            // Hide toggle direction button
-            var btn = document.getElementById('toggleDirectionBtn');
-            if (btn) {
-                btn.style.display = 'none';
-            }
-            
             // Clear all text boxes
             if (appState.textBoxes) {
                 appState.textBoxes.forEach(function(marker) {
@@ -6412,24 +6358,6 @@ var cvfrRoutesData = [
             window.screenshotModal = modal;
             window.captureOrientation = 'portrait'; // Default to portrait
         }
-        
-        window.setOrientation = function(orientation) {
-            window.captureOrientation = orientation;
-            var landscapeBtn = document.getElementById('orientLandscape');
-            var portraitBtn = document.getElementById('orientPortrait');
-            
-            if (orientation === 'landscape') {
-                landscapeBtn.style.background = '#0066cc';
-                landscapeBtn.style.color = 'white';
-                portraitBtn.style.background = 'white';
-                portraitBtn.style.color = '#0066cc';
-            } else {
-                portraitBtn.style.background = '#0066cc';
-                portraitBtn.style.color = 'white';
-                landscapeBtn.style.background = 'white';
-                landscapeBtn.style.color = '#0066cc';
-            }
-        };
         
         window.closeScreenshotModal = function(skipSidebarRestore) {
             if (window.screenshotModal) {
@@ -7881,254 +7809,6 @@ var cvfrRoutesData = [
             printWindow.document.close();
         }
         
-        function printPlan() {
-            if (appState.waypoints.length === 0) {
-                alert('No waypoints to print!');
-                return;
-            }
-            
-            // Create modal for print options
-            var modal = document.createElement('div');
-            modal.style.cssText = 'position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.7); z-index: 10000; display: flex; align-items: center; justify-content: center;';
-            
-            var dialog = document.createElement('div');
-            dialog.style.cssText = 'background: white; padding: 30px; border-radius: 12px; max-width: 500px; width: 90%;';
-            
-            dialog.innerHTML = '<h2 style="margin: 0 0 20px 0;">Print Flight Plan</h2>' +
-                '<div style="margin-bottom: 20px;">' +
-                '<label style="display: block; margin-bottom: 10px; font-weight: bold;">Select Print Area:</label>' +
-                '<div style="display: flex; gap: 10px; margin-bottom: 10px;">' +
-                '<button onclick="setPrintArea(\'current\')" style="flex: 1; padding: 10px; border: 2px solid #0066cc; background: white; border-radius: 6px; cursor: pointer;">Current View</button>' +
-                '<button onclick="setPrintArea(\'route\')" style="flex: 1; padding: 10px; border: 2px solid #0066cc; background: white; border-radius: 6px; cursor: pointer;">Fit Route</button>' +
-                '</div>' +
-                '<button onclick="setPrintArea(\'manual\')" style="width: 100%; padding: 10px; border: 2px solid #0066cc; background: white; border-radius: 6px; cursor: pointer; margin-bottom: 20px;">Manual Selection (draw on map)</button>' +
-                '</div>' +
-                '<div style="margin-bottom: 20px;">' +
-                '<label style="display: block; margin-bottom: 10px; font-weight: bold;">Zoom Level: <span id="printZoomValue">13</span></label>' +
-                '<input type="range" id="printZoom" min="10" max="15" value="13" style="width: 100%;" oninput="document.getElementById(\'printZoomValue\').textContent = this.value">' +
-                '<div style="display: flex; justify-content: space-between; font-size: 12px; color: #666; margin-top: 5px;">' +
-                '<span>10 (overview)</span><span>13 (detailed)</span><span>15 (close-up)</span>' +
-                '</div>' +
-                '</div>' +
-                '<div style="display: flex; gap: 10px;">' +
-                '<button onclick="executePrint()" style="flex: 1; padding: 12px; background: #0066cc; color: white; border: none; border-radius: 6px; cursor: pointer; font-weight: bold;">Print</button>' +
-                '<button onclick="cancelPrint()" style="flex: 1; padding: 12px; background: #dc3545; color: white; border: none; border-radius: 6px; cursor: pointer; font-weight: bold;">Cancel</button>' +
-                '</div>';
-            
-            modal.appendChild(dialog);
-            document.body.appendChild(modal);
-            
-            window.printModal = modal;
-            window.printArea = 'current';
-            window.manualBounds = null;
-            window.selectionRectangle = null;
-            
-            window.setPrintArea = function(type) {
-                window.printArea = type;
-                if (type === 'manual') {
-                    document.body.removeChild(window.printModal);
-                    
-                    // Show instruction overlay
-                    var instruction = document.createElement('div');
-                    instruction.style.cssText = 'position: fixed; top: 20px; left: 50%; transform: translateX(-50%); background: rgba(0,102,204,0.95); color: white; padding: 15px 30px; border-radius: 8px; z-index: 10000; font-weight: bold; box-shadow: 0 4px 12px rgba(0,0,0,0.3);';
-                    instruction.textContent = 'Click two points on the map to define print area (top-left, then bottom-right)';
-                    document.body.appendChild(instruction);
-                    
-                    var clickCount = 0;
-                    var firstPoint = null;
-                    
-                    var clickHandler = function(e) {
-                        clickCount++;
-                        
-                        if (clickCount === 1) {
-                            firstPoint = e.latlng;
-                            instruction.textContent = 'Now click bottom-right corner';
-                            
-                            // Show temporary marker
-                            var marker = L.marker([firstPoint.lat, firstPoint.lng], {
-                                icon: L.divIcon({
-                                    className: 'selection-marker',
-                                    html: '<div style="background: red; width: 20px; height: 20px; border-radius: 50%; border: 3px solid white;"></div>',
-                                    iconSize: [20, 20],
-                                    iconAnchor: [10, 10]
-                                })
-                            }).addTo(appState.map);
-                            window.selectionMarkers = [marker];
-                        } else if (clickCount === 2) {
-                            var secondPoint = e.latlng;
-                            
-                            // Show second marker
-                            var marker2 = L.marker([secondPoint.lat, secondPoint.lng], {
-                                icon: L.divIcon({
-                                    className: 'selection-marker',
-                                    html: '<div style="background: red; width: 20px; height: 20px; border-radius: 50%; border: 3px solid white;"></div>',
-                                    iconSize: [20, 20],
-                                    iconAnchor: [10, 10]
-                                })
-                            }).addTo(appState.map);
-                            window.selectionMarkers.push(marker2);
-                            
-                            // Create bounds
-                            window.manualBounds = L.latLngBounds(firstPoint, secondPoint);
-                            
-                            // Show selection rectangle
-                            window.selectionRectangle = L.rectangle(window.manualBounds, {
-                                color: '#0066cc',
-                                weight: 3,
-                                fillOpacity: 0.1
-                            }).addTo(appState.map);
-                            
-                            // Remove instruction and handler
-                            document.body.removeChild(instruction);
-                            appState.map.off('click', clickHandler);
-                            
-                            // Re-show print dialog
-                            document.body.appendChild(window.printModal);
-                        }
-                    };
-                    
-                    appState.map.on('click', clickHandler);
-                    
-                    // Add cancel button to instruction
-                    var cancelBtn = document.createElement('button');
-                    cancelBtn.textContent = 'Cancel';
-                    cancelBtn.style.cssText = 'margin-left: 15px; padding: 5px 15px; background: white; color: #0066cc; border: none; border-radius: 4px; cursor: pointer; font-weight: bold;';
-                    cancelBtn.onclick = function() {
-                        document.body.removeChild(instruction);
-                        appState.map.off('click', clickHandler);
-                        if (window.selectionMarkers) {
-                            window.selectionMarkers.forEach(function(m) { appState.map.removeLayer(m); });
-                            delete window.selectionMarkers;
-                        }
-                        if (window.selectionRectangle) {
-                            appState.map.removeLayer(window.selectionRectangle);
-                            delete window.selectionRectangle;
-                        }
-                        document.body.appendChild(window.printModal);
-                    };
-                    instruction.appendChild(cancelBtn);
-                }
-            };
-            
-            window.executePrint = function() {
-                var zoom = parseInt(document.getElementById('printZoom').value);
-                document.body.removeChild(window.printModal);
-                delete window.printModal;
-                
-                // Clean up selection markers and rectangle
-                if (window.selectionMarkers) {
-                    window.selectionMarkers.forEach(function(m) { appState.map.removeLayer(m); });
-                    delete window.selectionMarkers;
-                }
-                if (window.selectionRectangle) {
-                    appState.map.removeLayer(window.selectionRectangle);
-                    delete window.selectionRectangle;
-                }
-                
-                // Show "Preparing print..." message
-                var preparing = document.createElement('div');
-                preparing.style.cssText = 'position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); background: rgba(0,0,0,0.9); color: white; padding: 30px 50px; border-radius: 12px; z-index: 10001; font-size: 18px; font-weight: bold;';
-                preparing.textContent = 'Preparing print view...';
-                document.body.appendChild(preparing);
-                
-                // Set zoom and bounds based on selection - use setTimeout to let map render
-                setTimeout(function() {
-                    if (window.printArea === 'manual' && window.manualBounds) {
-                        appState.map.fitBounds(window.manualBounds, {padding: [20, 20]});
-                        setTimeout(function() {
-                            appState.map.setZoom(zoom);
-                            finalizePrint(preparing);
-                        }, 300);
-                    } else if (window.printArea === 'route' && appState.waypoints.length > 0) {
-                        var bounds = L.latLngBounds(appState.waypoints.map(function(wp) {
-                            return [wp.lat, wp.lng];
-                        }));
-                        appState.map.fitBounds(bounds, {padding: [50, 50]});
-                        setTimeout(function() {
-                            appState.map.setZoom(zoom);
-                            finalizePrint(preparing);
-                        }, 300);
-                    } else if (window.printArea === 'current') {
-                        // Keep current center, just set zoom
-                        var currentCenter = appState.map.getCenter();
-                        appState.map.setView(currentCenter, zoom);
-                        finalizePrint(preparing);
-                    }
-                }, 100);
-            };
-            
-            function finalizePrint(preparing) {
-                // Wait for tiles to load
-                setTimeout(function() {
-                    document.body.removeChild(preparing);
-                    
-                    // Generate print content
-                    var printWP = '';
-                    appState.waypoints.forEach(function(wp, idx) {
-                    printWP += '<div style="margin-bottom: 20px; padding: 10px; border: 1px solid #ddd;">';
-                    printWP += '<h3>Waypoint ' + wp.num + ' — ' + wp.name + '</h3>';
-                    printWP += '<p><strong>Coordinates:</strong> ' + wp.lat.toFixed(4) + '°N, ' + wp.lng.toFixed(4) + '°E</p>';
-                    
-                    if (idx < appState.waypoints.length - 1) {
-                        printWP += '<p><strong>Leg Altitude:</strong> ' + getLegAltitude(idx) + ' ft</p>';
-                        var wp2 = appState.waypoints[idx + 1];
-                        var distance = calculateDistance(wp.lat, wp.lng, wp2.lat, wp2.lng);
-                        var heading = calculateBearing(wp.lat, wp.lng, wp2.lat, wp2.lng);
-                        var timeHours = legSeconds(idx) / 3600;
-                        var _lhm = splitHM(timeHours), hours = _lhm.h, minutes = _lhm.m;
-                        
-                        printWP += '<p><strong>To WP' + (idx + 2) + ':</strong> ' + getMagHeading(heading) + '° for ' + distance.toFixed(1) + ' nm (' + hours + 'h ' + minutes + 'm)</p>';
-                    }
-                    printWP += '</div>';
-                });
-                
-                document.getElementById('print-waypoints').innerHTML = printWP;
-                
-                var totalDistance = 0;
-                var totalTimeSecs = 0;
-                for (var i = 0; i < appState.waypoints.length - 1; i++) {
-                    var wp1 = appState.waypoints[i];
-                    var wp2 = appState.waypoints[i + 1];
-                    totalDistance += calculateDistance(wp1.lat, wp1.lng, wp2.lat, wp2.lng);
-                    totalTimeSecs += legSeconds(i);
-                }
-                var totalTimeHours = totalTimeSecs / 3600;
-                var _thm = splitHM(totalTimeHours), hours = _thm.h, minutes = _thm.m;
-                var fuelRequired = totalTimeHours * appState.fuelFlow;
-                
-                var printStats = '<h2>Summary</h2>';
-                printStats += '<p><strong>Total Distance:</strong> ' + totalDistance.toFixed(1) + ' nm</p>';
-                printStats += '<p><strong>Total Time:</strong> ' + hours + 'h ' + minutes + 'm</p>';
-                printStats += '<p><strong>Fuel Required:</strong> ' + fuelFromLitres(fuelRequired).toFixed(1) + ' ' + fuelUnitLong() + '</p>';
-                printStats += '<p><strong>Cruise Speed:</strong> ' + appState.cruiseSpeed + ' knots</p>';
-                printStats += '<p><strong>Fuel Flow:</strong> ' + formatFuelFlow() + '</p>';
-                
-                document.getElementById('print-stats').innerHTML = printStats;
-                
-                setTimeout(function() {
-                    window.print();
-                }, 500);
-                }, 800); // Wait for tiles to load
-            }
-            
-            window.cancelPrint = function() {
-                document.body.removeChild(window.printModal);
-                delete window.printModal;
-                
-                // Clean up selection markers and rectangle
-                if (window.selectionMarkers) {
-                    window.selectionMarkers.forEach(function(m) { appState.map.removeLayer(m); });
-                    delete window.selectionMarkers;
-                }
-                if (window.selectionRectangle) {
-                    appState.map.removeLayer(window.selectionRectangle);
-                    delete window.selectionRectangle;
-                }
-                if (window.manualBounds) {
-                    delete window.manualBounds;
-                }
-            };
-        }
         
         // ── Folder-based flight plan storage ────────────────────────────────
         var _folderHandle   = null;  // DirectoryHandle for root folder

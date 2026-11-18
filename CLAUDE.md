@@ -136,6 +136,17 @@ touching it. Brief map:
   - Cruise speed must pass `validCruiseSpeed()` (finite and > 0). A speed of 0
     once made leg times Infinity, and `drawMinuteTicks`' loop hung the tab.
     Input, settings and plan restore all go through the check.
+  - Format durations with `splitHM(hours)` / `splitHMS(hours)`. They round the
+    total first, so a time never reads "0h 60m". Don't split with
+    `floor(h)` + `round(minutes)`.
+- **Settings vs plan fields**: display settings (fonts, opacities, drift style,
+  speeds, fuel) live in `DEFAULT_SETTINGS`/`collectSettings()`/`applySettings()`.
+  Route-specific state goes in `planToJson()`/`_finishApplyPlan()` only
+  (waypoints, leg altitudes/climbs, mini WPs, `legBoxHidden`, label
+  offsets/styles, text boxes, wind tables, ident points). Some display values
+  (e.g. `waypointLabelFontSize`, `arrivalLabelFontSize`) are in both. When adding
+  a field to either, add the save, the restore and the slider/input sync.
+  A missing field in an older file should keep the current value, not reset it.
 - **Per-waypoint/per-leg state is keyed by `wp.num` (or `"numA_numB"`) or by leg
   index.** That covers `waypointLabelOffsets`/`Styles`, `miniWaypoints`,
   `legBoxHidden`, `legLabelDraggedPositions`, `legAltitudes` and `legClimbs`.

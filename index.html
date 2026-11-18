@@ -195,10 +195,16 @@
                 </div>
                 <div class="field">
                     <label for="fuelFlow" class="field-label">
-                        Fuel Flow (L/hr)
+                        Fuel Flow (gal/hr)
                     </label>
-                    <input type="number" id="fuelFlow" min="1" max="200" value="17" step="1" 
-                           class="field-input">
+                    <div style="display:flex;gap:6px;">
+                        <input type="number" id="fuelFlow" min="0.1" max="200" value="4.5" step="0.1"
+                               class="field-input" style="flex:1;min-width:0;">
+                        <select id="fuelUnit" class="field-input" style="width:auto;flex:0 0 auto;" title="Fuel unit">
+                            <option value="gal" selected>US gal</option>
+                            <option value="L">Liters</option>
+                        </select>
+                    </div>
                 </div>
                 <div class="field">
                     <label for="magVar" class="field-label">
@@ -425,7 +431,7 @@
                     </div>
                     <div class="stat-card">
                         <div class="stat-label">Fuel Required</div>
-                        <div class="stat-value" id="fuel-required">0.0 L</div>
+                        <div class="stat-value" id="fuel-required">0.0 gal</div>
                     </div>
                     <div class="stat-card">
                         <div class="stat-label">Number of Legs</div>
@@ -568,7 +574,8 @@
             circleRadius: 0.3,
             circleOpacity: 0.2,
             cruiseSpeed: 90,
-            fuelFlow: 17,
+            fuelFlow: 17, // always stored in L/hr; shown in appState.fuelUnit
+            fuelUnit: 'gal', // 'gal' (US gallons) or 'L' - display/input unit only
             magVar: -5,
             lineWidth: 4,
             labelFontSize: 15,
@@ -1541,7 +1548,7 @@ var cvfrRoutesData = [
                 textBoxFontSize: "Text Box Font Size",
                 infoBoxOpacity: "Info Box Opacity",
                 cruiseSpeed: "Cruise Speed (knots)",
-                fuelFlow: "Fuel Flow (L/hr)",
+                fuelFlow: "Fuel Flow",
                 waypoints: "Waypoints",
                 show: "Show",
                 hide: "Hide",
@@ -1640,7 +1647,7 @@ var cvfrRoutesData = [
                 textBoxFontSize: "גודל גופן תיבת טקסט",
                 infoBoxOpacity: "שקיפות תיבת מידע",
                 cruiseSpeed: "מהירות שיוט (קשרים)",
-                fuelFlow: "זרימת דלק (ליטר/שעה)",
+                fuelFlow: "זרימת דלק",
                 waypoints: "נקודות ציון",
                 show: "הצג",
                 hide: "הסתר",
@@ -4640,9 +4647,17 @@ var cvfrRoutesData = [
             });
             
             document.getElementById('fuelFlow').addEventListener('input', function(e) {
-                appState.fuelFlow = parseFloat(e.target.value);
+                var v = parseFloat(e.target.value);
+                if (isNaN(v) || v <= 0) return;
+                appState.fuelFlow = fuelToLitres(v); // stored in L/hr
                 updateStats();
             });
+            document.getElementById('fuelUnit').addEventListener('change', function(e) {
+                appState.fuelUnit = e.target.value === 'L' ? 'L' : 'gal';
+                syncFuelFlowInput();
+                updateStats();
+            });
+            syncFuelFlowInput();
 
             document.getElementById('magVar').addEventListener('input', function(e) {
                 appState.magVar = parseFloat(e.target.value) || 0;
@@ -5179,7 +5194,7 @@ var cvfrRoutesData = [
             if (cruiseLabel) cruiseLabel.textContent = t.cruiseSpeed;
             
             var fuelLabel = document.querySelector('label[for="fuelFlow"]');
-            if (fuelLabel) fuelLabel.textContent = t.fuelFlow;
+            if (fuelLabel) syncFuelFlowInput();
             
             // Update Display Settings panel
             var displaySettingsBtn = document.getElementById('toggleDisplaySettingsBtn');
@@ -7263,6 +7278,41 @@ var cvfrRoutesData = [
             };
         }
         
+        // ── Fuel units ─────────────────────────────────────────────────────
+        // appState.fuelFlow is always kept in litres/hour so saved plans and
+        // settings files stay unit-independent (and older ones load unchanged).
+        // appState.fuelUnit only controls what the user types and sees.
+        // 1 US gallon = 3.785411784 L exactly (by definition).
+        var LITRES_PER_US_GAL = 3.785411784;
+        function fuelFromLitres(litres) {
+            return appState.fuelUnit === 'L' ? litres : litres / LITRES_PER_US_GAL;
+        }
+        function fuelToLitres(v) {
+            return appState.fuelUnit === 'L' ? v : v * LITRES_PER_US_GAL;
+        }
+        function fuelUnitShort() { return appState.fuelUnit === 'L' ? 'L' : 'gal'; }
+        function fuelUnitLong()  { return appState.fuelUnit === 'L' ? 'liters' : 'US gallons'; }
+        function fuelRateUnit() {
+            if (appState.language === 'he') return appState.fuelUnit === 'L' ? 'ליטר/שעה' : 'גלון/שעה';
+            return appState.fuelUnit === 'L' ? 'L/hr' : 'gal/hr';
+        }
+        function formatFuelFlow() {
+            return (Math.round(fuelFromLitres(appState.fuelFlow) * 10) / 10) + ' ' + fuelRateUnit();
+        }
+        // Push appState.fuelFlow/fuelUnit into the Data-tab input, selector and label.
+        function syncFuelFlowInput() {
+            var input = document.getElementById('fuelFlow');
+            if (input) {
+                input.step = appState.fuelUnit === 'L' ? '1' : '0.1';
+                input.value = Math.round(fuelFromLitres(appState.fuelFlow) * 10) / 10;
+            }
+            var sel = document.getElementById('fuelUnit');
+            if (sel) sel.value = appState.fuelUnit === 'L' ? 'L' : 'gal';
+            var label = document.querySelector('label[for="fuelFlow"]');
+            var t = translations[appState.language] || translations.en;
+            if (label) label.textContent = t.fuelFlow + ' (' + fuelRateUnit() + ')';
+        }
+
         function updateStats() {
             var t = translations[appState.language];
             var totalDistance = 0;
@@ -7283,7 +7333,7 @@ var cvfrRoutesData = [
             var statsHTML = '';
             statsHTML += '<div class="stat-card"><div class="stat-label">' + t.totalDistance + '</div><div class="stat-value">' + totalDistance.toFixed(1) + ' nm</div></div>';
             statsHTML += '<div class="stat-card"><div class="stat-label">' + t.totalTime + '</div><div class="stat-value">' + hours + 'h ' + minutes + 'm</div></div>';
-            statsHTML += '<div class="stat-card"><div class="stat-label">' + t.fuelRequired + '</div><div class="stat-value">' + fuelRequired.toFixed(1) + ' L</div></div>';
+            statsHTML += '<div class="stat-card"><div class="stat-label">' + t.fuelRequired + '</div><div class="stat-value">' + fuelFromLitres(fuelRequired).toFixed(1) + ' ' + fuelUnitShort() + '</div></div>';
             statsHTML += '<div class="stat-card"><div class="stat-label">' + t.numberOfLegs + '</div><div class="stat-value">' + Math.max(0, appState.waypoints.length - 1) + '</div></div>';
             
             document.getElementById('stats').innerHTML = statsHTML;
@@ -8896,7 +8946,7 @@ var cvfrRoutesData = [
             html += '<h1>✈️ Flight Plan</h1>';
             html += '<p><strong>Date:</strong> ' + new Date().toLocaleString() + '</p>';
             html += '<p><strong>Cruise Speed:</strong> ' + appState.cruiseSpeed + ' knots | ';
-            html += '<strong>Fuel Flow:</strong> ' + appState.fuelFlow + ' L/hr</p>';
+            html += '<strong>Fuel Flow:</strong> ' + formatFuelFlow() + '</p>';
             
             // Legs table FIRST
             html += '<h2>Flight Legs</h2>';
@@ -8937,7 +8987,7 @@ var cvfrRoutesData = [
                 html += '<td>' + getMagHeading(heading) + '°</td>';
                 html += '<td>' + distance.toFixed(1) + ' nm</td>';
                 html += '<td>' + timeStr + '</td>';
-                html += '<td>' + fuel.toFixed(1) + ' L</td>';
+                html += '<td>' + fuelFromLitres(fuel).toFixed(1) + ' ' + fuelUnitShort() + '</td>';
                 html += '</tr>';
                 
                 // Find text boxes closest to THIS specific leg
@@ -9056,12 +9106,12 @@ var cvfrRoutesData = [
             
             html += '<div class="summary-item"><span class="summary-label">Total Distance:</span> ' + totalDistance.toFixed(1) + ' nm</div>';
             html += '<div class="summary-item"><span class="summary-label">Total Flight Time:</span> ' + summaryHours + 'h ' + summaryMinutes + 'm</div>';
-            html += '<div class="summary-item"><span class="summary-label">Total Fuel Required:</span> ' + totalFuel.toFixed(1) + ' liters</div>';
+            html += '<div class="summary-item"><span class="summary-label">Total Fuel Required:</span> ' + fuelFromLitres(totalFuel).toFixed(1) + ' ' + fuelUnitLong() + '</div>';
             
             var reserveFuel = (30 / 60) * appState.fuelFlow; // 30 minutes reserve
             var recommendedFuel = totalFuel + reserveFuel;
             
-            html += '<div class="summary-item"><span class="summary-label">Recommended Fuel (+ 30 min reserve):</span> ' + recommendedFuel.toFixed(1) + ' liters</div>';
+            html += '<div class="summary-item"><span class="summary-label">Recommended Fuel (+ 30 min reserve):</span> ' + fuelFromLitres(recommendedFuel).toFixed(1) + ' ' + fuelUnitLong() + '</div>';
             html += '<div class="summary-item"><span class="summary-label">Number of Waypoints:</span> ' + appState.waypoints.length + '</div>';
             html += '<div class="summary-item"><span class="summary-label">Number of Legs:</span> ' + (appState.waypoints.length - 1) + '</div>';
             
@@ -9294,9 +9344,9 @@ var cvfrRoutesData = [
                 var printStats = '<h2>Summary</h2>';
                 printStats += '<p><strong>Total Distance:</strong> ' + totalDistance.toFixed(1) + ' nm</p>';
                 printStats += '<p><strong>Total Time:</strong> ' + hours + 'h ' + minutes + 'm</p>';
-                printStats += '<p><strong>Fuel Required:</strong> ' + fuelRequired.toFixed(1) + ' liters</p>';
+                printStats += '<p><strong>Fuel Required:</strong> ' + fuelFromLitres(fuelRequired).toFixed(1) + ' ' + fuelUnitLong() + '</p>';
                 printStats += '<p><strong>Cruise Speed:</strong> ' + appState.cruiseSpeed + ' knots</p>';
-                printStats += '<p><strong>Fuel Flow:</strong> ' + appState.fuelFlow + ' L/hr</p>';
+                printStats += '<p><strong>Fuel Flow:</strong> ' + formatFuelFlow() + '</p>';
                 
                 document.getElementById('print-stats').innerHTML = printStats;
                 
@@ -9449,7 +9499,8 @@ var cvfrRoutesData = [
 
         var DEFAULT_SETTINGS = {
             cruiseSpeed:          90,
-            fuelFlow:             17,
+            fuelFlow:             17,     // L/hr (canonical storage unit)
+            fuelUnit:             'gal',
             magVar:               -5,
             defaultAltitude:      400,
             circleRadius:         0.3,
@@ -9480,6 +9531,7 @@ var cvfrRoutesData = [
             return {
                 cruiseSpeed:          appState.cruiseSpeed,
                 fuelFlow:             appState.fuelFlow,
+                fuelUnit:             appState.fuelUnit,
                 magVar:               appState.magVar,
                 defaultAltitude:      appState.defaultAltitude,
                 circleRadius:         appState.circleRadius,
@@ -9518,6 +9570,7 @@ var cvfrRoutesData = [
         function applySettings(s) {
             appState.cruiseSpeed          = s.cruiseSpeed          !== undefined ? s.cruiseSpeed          : DEFAULT_SETTINGS.cruiseSpeed;
             appState.fuelFlow             = s.fuelFlow             !== undefined ? s.fuelFlow             : DEFAULT_SETTINGS.fuelFlow;
+            appState.fuelUnit             = (s.fuelUnit === 'L' || s.fuelUnit === 'gal') ? s.fuelUnit : DEFAULT_SETTINGS.fuelUnit;
             appState.magVar               = s.magVar               !== undefined ? s.magVar               : DEFAULT_SETTINGS.magVar;
             appState.defaultAltitude      = s.defaultAltitude      !== undefined ? s.defaultAltitude      : DEFAULT_SETTINGS.defaultAltitude;
             appState.circleRadius         = s.circleRadius         !== undefined ? s.circleRadius         : DEFAULT_SETTINGS.circleRadius;
@@ -9539,7 +9592,7 @@ var cvfrRoutesData = [
 
             // Sync all UI controls
             document.getElementById('cruiseSpeed').value             = appState.cruiseSpeed;
-            document.getElementById('fuelFlow').value                = appState.fuelFlow;
+            syncFuelFlowInput();
             document.getElementById('magVar').value                  = appState.magVar;
             document.getElementById('defaultAltitude').value         = appState.defaultAltitude;
             document.getElementById('circleRadius').value            = Math.round(appState.circleRadius * 10);
@@ -9675,7 +9728,8 @@ var cvfrRoutesData = [
                 legLabelPositions: appState.legLabelDraggedPositions,
                 arrivalLabelPositions: appState.arrivalLabelPositions,
                 cruiseSpeed: appState.cruiseSpeed,
-                fuelFlow: appState.fuelFlow,
+                fuelFlow: appState.fuelFlow, // always L/hr
+                fuelUnit: appState.fuelUnit,
                 magVar: appState.magVar,
                 circleRadius: appState.circleRadius,
                 legAltitudes: appState.legAltitudes,
@@ -9858,6 +9912,8 @@ var cvfrRoutesData = [
 
             appState.cruiseSpeed    = plan.cruiseSpeed    || 120;
             appState.fuelFlow       = plan.fuelFlow       || 17;
+            // No fuelUnit = plan saved before the gallons option existed = litres.
+            appState.fuelUnit       = (plan.fuelUnit === 'gal' || plan.fuelUnit === 'L') ? plan.fuelUnit : 'L';
             appState.magVar         = plan.magVar !== undefined ? plan.magVar : -5;
             appState.circleRadius   = plan.circleRadius   || 0.3;
             appState.legAltitudes   = plan.legAltitudes   || {};
@@ -9912,7 +9968,7 @@ var cvfrRoutesData = [
             });
             appState.arrivalLabelPositions = plan.arrivalLabelPositions || {};
             document.getElementById('cruiseSpeed').value    = appState.cruiseSpeed;
-            document.getElementById('fuelFlow').value       = appState.fuelFlow;
+            syncFuelFlowInput();
             document.getElementById('magVar').value         = appState.magVar;
             document.getElementById('defaultAltitude').value = appState.defaultAltitude;
             document.getElementById('circleRadius').value   = Math.round(appState.circleRadius * 10);

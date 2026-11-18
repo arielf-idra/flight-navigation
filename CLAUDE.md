@@ -182,6 +182,10 @@ append the new version to `versionOrder`.
   ignored. A remembered active tab of `notams` falls back to Route
   (`switchDashboardTab()` falls back for any unknown tab).
 - **LSA/AZM reporting points**: see the Data tables section.
+- **"Show Airspace" layer** (`initAirspaceZones`/`toggleAirspace`) removed in Nov 2026
+  at the user's request. It was 7 hardcoded circles with made-up radii and no
+  provenance, including Sde Dov CTR (closed 2019). If airspace is ever wanted again,
+  it needs real data from a source the user supplies (see the data-integrity rule).
 - **"Time Label Interval" slider** (`labelInterval`) removed in Nov 2026. It never
   did anything, and the user wants minute labels fixed on even minutes
   (`drawMinuteTicks`). Old settings and plans with `labelInterval` are ignored.

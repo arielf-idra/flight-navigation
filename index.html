@@ -69,7 +69,6 @@
             <div class="panel" data-tab="layers">
                 <h2>Map Layers</h2>
                 <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 6px;">
-                        <button class="btn-secondary" id="airspaceToggleBtn" style="font-size: 11px; padding: 6px 8px;">Show Airspace</button>
                         <button class="btn-primary"   id="cvfrPointsToggleBtn" onclick="toggleCVFRPoints()" style="font-size: 11px; padding: 6px 8px;">Hide CVFR</button>
                         <button class="btn-secondary" id="cvfrRoutesToggleBtn" onclick="toggleCVFRRoutes()" style="font-size: 11px; padding: 6px 8px;">Show CVFR Routes</button>
                         <button class="btn-secondary" id="frequenciesToggleBtn" onclick="toggleFrequencies()" style="font-size: 11px; padding: 6px 8px;">Show Frequencies</button>
@@ -456,8 +455,6 @@
             infoBoxScale: 1.0,
             infoBoxSizeMultiplier: 1.2,
             infoBoxFontMultiplier: 1.6364,
-            airspaceZones: [],
-            airspaceVisible: false,
             isDrawing: false,
             debugMode: false,
             map: null,
@@ -1159,8 +1156,6 @@ var cvfrRoutesData = [
                 showOutbound: "Show Outbound",
                 hideReturn: "Hide Return",
                 addTextBox: "Add Text Box",
-                airspaceToggle: "Show Airspace",
-                hideAirspace: "Hide Airspace",
                 showFrequencies: "Show Frequencies",
                 hideFrequencies: "Hide Frequencies",
                 showVOR: "Show VOR",
@@ -1221,8 +1216,6 @@ var cvfrRoutesData = [
                 showOutbound: "הצג יציאה",
                 hideReturn: "הסתר חזרה",
                 addTextBox: "הוסף תיבת טקסט",
-                airspaceToggle: "הצג מרחב אווירי",
-                hideAirspace: "הסתר מרחב אווירי",
                 showFrequencies: "הצג תדרים",
                 hideFrequencies: "הסתר תדרים",
                 showVOR: "הצג VOR",
@@ -1566,9 +1559,6 @@ var cvfrRoutesData = [
 
             });
             
-            // Initialize airspace zones (hidden by default)
-            initAirspaceZones();
-            
             initFrequencies();
             initVORPoints();
             initAirstrips();
@@ -1709,52 +1699,6 @@ var cvfrRoutesData = [
                 
                 showPreview(e.latlng);
             });
-        }
-        
-        function initAirspaceZones() {
-            var zones = [
-                { name: "Ben Gurion CTR", lat: 32.0, lng: 34.9, radius: 15000, color: 'rgba(255,0,0,0.2)', type: 'Class B' },
-                { name: "Sde Dov CTR", lat: 32.11, lng: 34.78, radius: 8000, color: 'rgba(255,165,0,0.2)', type: 'Class D' },
-                { name: "Haifa CTR", lat: 32.81, lng: 35.04, radius: 10000, color: 'rgba(255,165,0,0.2)', type: 'Class D' },
-                { name: "Ramon CTR", lat: 29.73, lng: 35.01, radius: 10000, color: 'rgba(255,165,0,0.2)', type: 'Class D' },
-                { name: "Nevatim CTR", lat: 31.21, lng: 35.01, radius: 10000, color: 'rgba(255,0,0,0.2)', type: 'Class B' },
-                { name: "Northern Restricted", lat: 33.2, lng: 35.6, radius: 20000, color: 'rgba(0,0,255,0.2)', type: 'Restricted' },
-                { name: "Gaza Restricted", lat: 31.5, lng: 34.4, radius: 15000, color: 'rgba(0,0,255,0.2)', type: 'Restricted' }
-            ];
-            
-            zones.forEach(function(zone) {
-                var circle = L.circle([zone.lat, zone.lng], {
-                    color: zone.color.replace('0.2', '0.8'),
-                    fillColor: zone.color,
-                    fillOpacity: 0.2,
-                    radius: zone.radius,
-                    weight: 2,
-                    interactive: false
-                });
-                circle.bindPopup('<strong>' + zone.name + '</strong><br>' + zone.type);
-                appState.airspaceZones.push(circle);
-            });
-        }
-        
-        function toggleAirspace() {
-            appState.airspaceVisible = !appState.airspaceVisible;
-            var btn = document.getElementById('airspaceToggleBtn');
-            
-            if (appState.airspaceVisible) {
-                btn.textContent = 'Hide Airspace';
-                btn.classList.add('btn-primary');
-                btn.classList.remove('btn-secondary');
-                appState.airspaceZones.forEach(function(zone) {
-                    zone.addTo(appState.map);
-                });
-            } else {
-                btn.textContent = 'Show Airspace';
-                btn.classList.remove('btn-primary');
-                btn.classList.add('btn-secondary');
-                appState.airspaceZones.forEach(function(zone) {
-                    appState.map.removeLayer(zone);
-                });
-            }
         }
         
         function initFrequencies() {
@@ -2392,6 +2336,7 @@ var cvfrRoutesData = [
                     items: [
                         'The NOTAMs tab and NOTAM map overlay',
                         'The LSA/AZM reporting points layer',
+                        'The "Show Airspace" layer (approximate placeholder circles, not real airspace boundaries)',
                         'The "Time Label Interval" setting, which had no effect (minute labels always show on even minutes)'
                     ]
                 }
@@ -3542,7 +3487,6 @@ var cvfrRoutesData = [
             document.getElementById('toggleDrawBtn').addEventListener('click', toggleDrawing);
             document.getElementById('clearBtn').addEventListener('click', clearRoute);
             document.getElementById('addCoordBtn').addEventListener('click', addWaypointByCoordinates);
-            document.getElementById('airspaceToggleBtn').addEventListener('click', toggleAirspace);
             document.getElementById('reverseRouteBtn').addEventListener('click', generateReverseRoute);
             document.getElementById('toggleDirectionBtn').addEventListener('click', toggleDirectionVisibility);
             document.getElementById('addTextBoxBtn2').addEventListener('click', startAddingTextBox);
@@ -4106,7 +4050,6 @@ var cvfrRoutesData = [
                 'toggleDirectionBtn': appState.reverseRouteVisible ? t.showOutbound : t.showReturn,
                 'addTextBoxBtn': t.addTextBox,
                 'addTextBoxBtn2': t.addTextBox,
-                'airspaceToggleBtn': appState.airspaceVisible ? t.hideAirspace : t.airspaceToggle,
                 'frequenciesToggleBtn': appState.frequenciesVisible ? t.hideFrequencies : t.showFrequencies,
                 'vorToggleBtn': appState.vorPointsVisible ? t.hideVOR : t.showVOR,
                 'vorInfoToggleBtn': appState.showVORInfo ? t.hideVORInfo : t.showVORInfo,

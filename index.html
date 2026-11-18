@@ -422,8 +422,6 @@
             waypointLabelsVisible: true,
             waypointLabelOffsets: {},
             miniWaypoints: {},
-            waypointLabelOffsetsReverse: {},
-            waypointLabelStylesReverse: {},
             waypointLabelFontSize: 11,
             legTimeVisible: true,
             accumTimeVisible: true, // total elapsed time "(MM:SS)" on each waypoint label
@@ -1262,7 +1260,7 @@ var cvfrRoutesData = [
             if (!notice) return;
             notice.innerHTML =
                 '<div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">' +
-                '<span style="flex:1;min-width:180px;font-size:0.8125rem;color:var(--text);">⚠️ No working folder selected — saving plans, settings and calibration is disabled</span>' +
+                '<span style="flex:1;min-width:180px;font-size:0.8125rem;color:var(--text);">⚠️ No working folder selected — plans are saved in this browser only, and settings cannot be saved to a file</span>' +
                 '<button id="noFolderSelectBtn" class="btn-primary" style="padding:6px 14px;font-size:0.8125rem;">Select Folder</button>' +
                 '<button id="noFolderDismiss" class="btn-secondary" style="padding:6px 10px;font-size:0.8125rem;">✕</button>' +
                 '</div>';
@@ -8184,7 +8182,8 @@ var cvfrRoutesData = [
             miniWpLabelOpacity:   0.70,
             driftColor:           '#cc6600',
             driftWidth:           2,
-            arrivalLabelFontSize: 16
+            arrivalLabelFontSize: 9,
+            waypointLabelFontSize: 11
         };
 
         function collectSettings() {
@@ -8207,7 +8206,7 @@ var cvfrRoutesData = [
                 driftColor:           appState.driftColor,
                 driftWidth:           appState.driftWidth,
                 arrivalLabelFontSize: appState.arrivalLabelFontSize,
-                miniWaypoints: appState.miniWaypoints
+                waypointLabelFontSize: appState.waypointLabelFontSize
             };
         }
 
@@ -8231,6 +8230,7 @@ var cvfrRoutesData = [
             appState.driftColor           = s.driftColor           !== undefined ? s.driftColor           : DEFAULT_SETTINGS.driftColor;
             appState.driftWidth           = s.driftWidth           !== undefined ? s.driftWidth           : DEFAULT_SETTINGS.driftWidth;
             appState.arrivalLabelFontSize = s.arrivalLabelFontSize !== undefined ? s.arrivalLabelFontSize : DEFAULT_SETTINGS.arrivalLabelFontSize;
+            appState.waypointLabelFontSize = s.waypointLabelFontSize !== undefined ? s.waypointLabelFontSize : DEFAULT_SETTINGS.waypointLabelFontSize;
 
             // Sync all UI controls
             document.getElementById('cruiseSpeed').value             = appState.cruiseSpeed;
@@ -8366,7 +8366,9 @@ var cvfrRoutesData = [
                 driftColor: appState.driftColor,
                 driftWidth: appState.driftWidth,
                 arrivalLabelFontSize: appState.arrivalLabelFontSize,
-                miniWaypoints: appState.miniWaypoints
+                waypointLabelFontSize: appState.waypointLabelFontSize,
+                miniWaypoints: appState.miniWaypoints,
+                legBoxHidden: appState.legBoxHidden
             };
         }
 
@@ -8545,11 +8547,11 @@ var cvfrRoutesData = [
             appState.driftColor           = plan.driftColor           || '#cc6600';
             appState.driftWidth           = plan.driftWidth           || 2;
             appState.arrivalLabelFontSize = plan.arrivalLabelFontSize || 9;
-            appState.waypointLabelFontSize = plan.waypointLabelFontSize || 11;
+            if (plan.waypointLabelFontSize) appState.waypointLabelFontSize = plan.waypointLabelFontSize;
+            document.getElementById('waypointLabelFontSize').value = appState.waypointLabelFontSize;
+            document.getElementById('waypointLabelFontSizeValue').textContent = appState.waypointLabelFontSize;
             // Restore label/box positions and styles BEFORE building route so they take effect immediately
             appState.waypointLabelOffsets = plan.waypointLabelOffsets || {};
-            appState.waypointLabelOffsetsReverse = plan.waypointLabelOffsetsReverse || {};
-            appState.waypointLabelStylesReverse = plan.waypointLabelStylesReverse || {};
             appState.waypointLabelStyles  = plan.waypointLabelStyles  || {};
             appState.miniWaypoints = plan.miniWaypoints || {};
             // Convert old absolute 'rotation' to heading-relative 'rotationDelta' if needed
@@ -8631,6 +8633,16 @@ var cvfrRoutesData = [
                 }
             });
             appState.legLabelDraggedPositions = convertedPos;
+
+            // Hidden leg boxes ("numA_numB" keys), remapped the same way
+            var hiddenBoxes = {};
+            Object.keys(plan.legBoxHidden || {}).forEach(function(k) {
+                var parts = k.split('_');
+                if (parts.length !== 2) return;
+                var h1 = savedNumToLoadedNum[parseInt(parts[0], 10)], h2 = savedNumToLoadedNum[parseInt(parts[1], 10)];
+                if (h1 && h2) hiddenBoxes[h1 + '_' + h2] = plan.legBoxHidden[k];
+            });
+            appState.legBoxHidden = hiddenBoxes;
 
             // Also remap miniWaypoints from saved nums to loaded nums
             var newMini = {};

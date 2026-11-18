@@ -160,6 +160,14 @@ touching it. Brief map:
   values. The brackets are controlled by `appState.accumTimeVisible` ("Hide/Show
   Accum. Time" in Layers, default on). Like the other label toggles (distance,
   drift lines, ±45° guides), it is **not** persisted and resets on load.
+- **Leg boxes** (heading triangle, then time, altitude, distance and optional fuel) are
+  built in two places that must stay in sync: `updateRoute()` (the normal and
+  mini-leg branches) and `updateLegLabelContent()`. The preview-while-drawing box
+  in `showPreview()` is separate and shows only the time. `showLegFuel` ("Show Leg
+  Fuel", default off, not persisted) adds `legBoxFuelText(totalSeconds)`. That
+  uses the same seconds as the box's time, including following mini legs, so it
+  matches Print Route Details. Map exports and prints capture the leg boxes as
+  they appear on screen.
 - **Fuel** = `legSeconds` × fuel flow. Taxi, alternate and climb fuel-flow
   differences aren't modelled. The route printout adds a fixed 30-minute reserve.
   - `appState.fuelFlow` is **always stored in L/hr**, whatever unit is shown.

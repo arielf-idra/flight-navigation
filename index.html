@@ -76,6 +76,7 @@
                         <button class="btn-primary"   id="waypointLabelsToggleBtn" onclick="toggleWaypointLabels()" style="font-size: 11px; padding: 6px 8px;">Hide WP Labels</button>
                         <button class="btn-primary"  id="driftLinesToggleBtn" onclick="toggleDriftLines()" style="font-size: 11px; padding: 6px 8px;">Hide Drift Lines</button>
                         <button class="btn-primary" id="legDistanceToggleBtn" onclick="toggleLegDistance()" style="font-size: 11px; padding: 6px 8px;">Hide Distance (NM)</button>
+                        <button class="btn-secondary" id="legFuelToggleBtn" onclick="toggleLegFuel()" style="font-size: 11px; padding: 6px 8px;">Show Leg Fuel</button>
                         <button class="btn-primary"   id="accumTimeToggleBtn" onclick="toggleAccumTime()" style="font-size: 11px; padding: 6px 8px;">Hide Accum. Time</button>
                         <button class="btn-primary"   id="vorInfoToggleBtn" onclick="toggleVORInfo()" style="font-size: 11px; padding: 6px 8px;">Hide VOR Info</button>
                         <button class="btn-secondary" id="airstripsToggleBtn" onclick="toggleAirstrips()" style="font-size: 11px; padding: 6px 8px;">Show Airstrips</button>
@@ -433,6 +434,7 @@
             driftLines: [],
             driftLinesVisible: true,
             showLegDistance: true,
+            showLegFuel: false, // leg fuel line in each leg box (default off)
             driftColor: '#cc6600',
             driftWidth: 2,
             legLabelPositions: {},
@@ -2219,7 +2221,8 @@ var cvfrRoutesData = [
                     items: [
                         'Fuel in US gallons or litres: pick the unit next to Fuel Flow (Data tab). Gallons is the default; plans remember their unit, and older plans open in litres',
                         'Climb legs: set from/to altitude, climb speed and rate in a leg\'s popup to get a top-of-climb (TOC) marker and a climb-adjusted leg time (defaults 70 kt / 700 fpm)',
-                        'New "Hide/Show Accum. Time" button (Layers tab) for the total elapsed time shown in brackets on each waypoint label'
+                        'New "Hide/Show Accum. Time" button (Layers tab) for the total elapsed time shown in brackets on each waypoint label',
+                        'New "Show Leg Fuel" button (Layers tab, off by default): adds each leg’s fuel to its leg box, so it appears on screen and on saved/printed maps'
                     ]
                 },
                 {
@@ -4823,6 +4826,7 @@ var cvfrRoutesData = [
                         '<div style="border-top:1px solid #0066cc;margin:'+(2*scale*sm)+'px 0;"></div>' +
                         '<div class="leg-altitude-display" style="color:#333;font-weight:bold;font-size:'+fontSize+'px;">'+altitude+'</div>' +
                         (appState.showLegDistance !== false ? '<div style="border-top:1px solid #0066cc;margin:'+(4*scale*sm)+'px 0;"></div><div style="color:#333;font-weight:bold;font-size:'+fontSize+'px;">'+distance.toFixed(1)+'</div>' : '') +
+                        (appState.showLegFuel ? '<div style="border-top:1px solid #0066cc;margin:'+(4*scale*sm)+'px 0;"></div><div style="color:#333;font-weight:bold;font-size:'+fontSize+'px;">'+legBoxFuelText(totalSeconds)+'</div>' : '') +
                         '</div></div></div>';
                 }
                 el.innerHTML = newHtml;
@@ -4837,6 +4841,22 @@ var cvfrRoutesData = [
                 btn.className = appState.showLegDistance ? 'btn-primary' : 'btn-secondary';
             }
             updateRoute();
+        }
+
+        function toggleLegFuel() {
+            appState.showLegFuel = !appState.showLegFuel;
+            var btn = document.getElementById('legFuelToggleBtn');
+            if (btn) {
+                btn.textContent = appState.showLegFuel ? 'Hide Leg Fuel' : 'Show Leg Fuel';
+                btn.className = appState.showLegFuel ? 'btn-primary' : 'btn-secondary';
+            }
+            updateRoute();
+        }
+
+        // Fuel for a leg box, from the same seconds the box shows as its time
+        // (a normal leg plus any following mini legs), in the selected unit.
+        function legBoxFuelText(seconds) {
+            return fuelFromLitres(seconds / 3600 * appState.fuelFlow).toFixed(1) + ' ' + fuelUnitShort();
         }
 
         function toggleVORInfo() {
@@ -5676,6 +5696,7 @@ var cvfrRoutesData = [
                             '<div style="border-top: 1px solid #0066cc; margin: ' + (2 * scale * sm) + 'px 0;"></div>' +
                             '<div class="leg-altitude-display" style="color: #333; font-weight: bold; font-size: ' + fontSize + 'px;">' + altitude + '</div>' +
                             (appState.showLegDistance !== false ? '<div style="border-top: 1px solid #0066cc; margin: ' + (4 * scale * sm) + 'px 0;"></div><div style="color: #333; font-weight: bold; font-size: ' + fontSize + 'px;">' + distance.toFixed(1) + '</div>' : '') +
+                            (appState.showLegFuel ? '<div style="border-top: 1px solid #0066cc; margin: ' + (4 * scale * sm) + 'px 0;"></div><div style="color: #333; font-weight: bold; font-size: ' + fontSize + 'px;">' + legBoxFuelText(totalSeconds) + '</div>' : '') +
                             (appState.debugMode ?
                                 '<div style="border-top: 1px solid #0066cc; margin: ' + (2 * scale * sm) + 'px 0;"></div>' +
                                 '<div style="color: #666; font-size: ' + (fontSize * 0.85) + 'px;">From: ' + wp1.lat.toFixed(4) + '°N ' + wp1.lng.toFixed(4) + '°E</div>' +

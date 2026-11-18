@@ -4159,6 +4159,18 @@ var cvfrRoutesData = [
         // Cruise speed must be a finite number > 0: 0 makes every leg time
         // Infinity (and drawMinuteTicks' loop never ends), empty gives NaN.
         // Returns the parsed speed, or null if it's not usable.
+        // Split a duration into whole h/m (or h/m/s) by rounding the TOTAL first,
+        // so 0.9999 h reads "1h 0m", not "0h 60m" (rounding the minutes part
+        // separately could produce 60).
+        function splitHM(hours) {
+            var totalMin = Math.round(hours * 60);
+            return { h: Math.floor(totalMin / 60), m: totalMin % 60 };
+        }
+        function splitHMS(hours) {
+            var totalSec = Math.round(hours * 3600);
+            return { h: Math.floor(totalSec / 3600), m: Math.floor(totalSec / 60) % 60, s: totalSec % 60 };
+        }
+
         function validCruiseSpeed(v) {
             var n = parseFloat(v);
             return (isFinite(n) && n > 0) ? n : null;
@@ -5934,8 +5946,7 @@ var cvfrRoutesData = [
             }
 
             var totalTimeHours = totalTimeSecs / 3600;
-            var hours = Math.floor(totalTimeHours);
-            var minutes = Math.round((totalTimeHours - hours) * 60);
+            var _hm = splitHM(totalTimeHours), hours = _hm.h, minutes = _hm.m;
             
             var fuelRequired = totalTimeHours * appState.fuelFlow;
             
@@ -7636,10 +7647,7 @@ var cvfrRoutesData = [
                 totalTime += timeHours;
                 totalFuel += fuel;
                 
-                var hours = Math.floor(timeHours);
-                var remainingSecs = Math.round((timeHours - hours) * 3600);
-                var minutes = Math.floor(remainingSecs / 60);
-                var seconds = remainingSecs % 60;
+                var _hms = splitHMS(timeHours), hours = _hms.h, minutes = _hms.m, seconds = _hms.s;
                 var timeStr = (hours < 10 ? '0' : '') + hours + ':' +
                               (minutes < 10 ? '0' : '') + minutes + ':' +
                               (seconds < 10 ? '0' : '') + seconds;
@@ -7765,8 +7773,7 @@ var cvfrRoutesData = [
             html += '<h2>Flight Summary</h2>';
             html += '<div class="summary">';
             
-            var summaryHours = Math.floor(totalTime);
-            var summaryMinutes = Math.round((totalTime - summaryHours) * 60);
+            var _shm = splitHM(totalTime), summaryHours = _shm.h, summaryMinutes = _shm.m;
             
             html += '<div class="summary-item"><span class="summary-label">Total Distance:</span> ' + totalDistance.toFixed(1) + ' nm</div>';
             html += '<div class="summary-item"><span class="summary-label">Total Flight Time:</span> ' + summaryHours + 'h ' + summaryMinutes + 'm</div>';
@@ -7982,8 +7989,7 @@ var cvfrRoutesData = [
                         var distance = calculateDistance(wp.lat, wp.lng, wp2.lat, wp2.lng);
                         var heading = calculateBearing(wp.lat, wp.lng, wp2.lat, wp2.lng);
                         var timeHours = legSeconds(idx) / 3600;
-                        var hours = Math.floor(timeHours);
-                        var minutes = Math.round((timeHours - hours) * 60);
+                        var _lhm = splitHM(timeHours), hours = _lhm.h, minutes = _lhm.m;
                         
                         printWP += '<p><strong>To WP' + (idx + 2) + ':</strong> ' + getMagHeading(heading) + '° for ' + distance.toFixed(1) + ' nm (' + hours + 'h ' + minutes + 'm)</p>';
                     }
@@ -8001,8 +8007,7 @@ var cvfrRoutesData = [
                     totalTimeSecs += legSeconds(i);
                 }
                 var totalTimeHours = totalTimeSecs / 3600;
-                var hours = Math.floor(totalTimeHours);
-                var minutes = Math.round((totalTimeHours - hours) * 60);
+                var _thm = splitHM(totalTimeHours), hours = _thm.h, minutes = _thm.m;
                 var fuelRequired = totalTimeHours * appState.fuelFlow;
                 
                 var printStats = '<h2>Summary</h2>';

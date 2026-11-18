@@ -3364,6 +3364,7 @@ var cvfrRoutesData = [
             var accumMinOffset = opts.accumMinOffset || 0;
             var radiusNm = opts.radiusNm || 0;
             var heading = opts.heading;
+            if (!isFinite(opts.totalMinutesForMarkers) || !isFinite(opts.totalMinutesExact)) return;
 
             for (var min = 1; min <= opts.totalMinutesForMarkers; min++) {
                 if (min % tickInterval !== 0) continue;
@@ -3595,7 +3596,9 @@ var cvfrRoutesData = [
             });
             
             document.getElementById('cruiseSpeed').addEventListener('input', function(e) {
-                appState.cruiseSpeed = parseFloat(e.target.value);
+                var v = validCruiseSpeed(e.target.value);
+                if (v === null) return; // empty / 0 / negative: keep the last valid speed
+                appState.cruiseSpeed = v;
                 updateStats();
                 updateRoute();
                 refreshIdentPointTimes();
@@ -3606,6 +3609,15 @@ var cvfrRoutesData = [
                 updateRoute();
             });
             
+            // On leaving an invalid entry, show the value actually in use again.
+            document.getElementById('cruiseSpeed').addEventListener('change', function(e) {
+                if (validCruiseSpeed(e.target.value) === null) e.target.value = appState.cruiseSpeed;
+            });
+            document.getElementById('fuelFlow').addEventListener('change', function(e) {
+                var v = parseFloat(e.target.value);
+                if (isNaN(v) || v <= 0) syncFuelFlowInput();
+            });
+
             document.getElementById('fuelFlow').addEventListener('input', function(e) {
                 var v = parseFloat(e.target.value);
                 if (isNaN(v) || v <= 0) return;
@@ -4443,6 +4455,14 @@ var cvfrRoutesData = [
         // is a no-op until a climb exists. With a climb, the first dNm (to the
         // top-of-climb, clamped to the leg length) is flown at the climb ground
         // speed and the remainder at cruise.
+        // Cruise speed must be a finite number > 0: 0 makes every leg time
+        // Infinity (and drawMinuteTicks' loop never ends), empty gives NaN.
+        // Returns the parsed speed, or null if it's not usable.
+        function validCruiseSpeed(v) {
+            var n = parseFloat(v);
+            return (isFinite(n) && n > 0) ? n : null;
+        }
+
         function legSeconds(i) {
             var a = appState.waypoints[i], b = appState.waypoints[i + 1];
             if (!a || !b) return 0;
@@ -8408,7 +8428,7 @@ var cvfrRoutesData = [
         }
 
         function applySettings(s) {
-            appState.cruiseSpeed          = s.cruiseSpeed          !== undefined ? s.cruiseSpeed          : DEFAULT_SETTINGS.cruiseSpeed;
+            appState.cruiseSpeed          = validCruiseSpeed(s.cruiseSpeed) !== null ? validCruiseSpeed(s.cruiseSpeed) : DEFAULT_SETTINGS.cruiseSpeed;
             appState.fuelFlow             = s.fuelFlow             !== undefined ? s.fuelFlow             : DEFAULT_SETTINGS.fuelFlow;
             appState.fuelUnit             = (s.fuelUnit === 'L' || s.fuelUnit === 'gal') ? s.fuelUnit : DEFAULT_SETTINGS.fuelUnit;
             appState.magVar               = s.magVar               !== undefined ? s.magVar               : DEFAULT_SETTINGS.magVar;
@@ -8732,7 +8752,7 @@ var cvfrRoutesData = [
                 appState.map.fire('baselayerchange', { name: targetMap });
             }
 
-            appState.cruiseSpeed    = plan.cruiseSpeed    || 120;
+            appState.cruiseSpeed    = validCruiseSpeed(plan.cruiseSpeed) !== null ? validCruiseSpeed(plan.cruiseSpeed) : DEFAULT_SETTINGS.cruiseSpeed;
             appState.fuelFlow       = plan.fuelFlow       || 17;
             // No fuelUnit = plan saved before the gallons option existed = litres.
             appState.fuelUnit       = (plan.fuelUnit === 'gal' || plan.fuelUnit === 'L') ? plan.fuelUnit : 'L';

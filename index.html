@@ -8900,6 +8900,22 @@ var cvfrRoutesData = [
                 if (loadedNum) newMini[loadedNum] = appState.miniWaypoints[num];
             });
             appState.miniWaypoints = newMini;
+
+            // Label offsets/styles are keyed by wp.num too. A plan saved after
+            // Reverse Route has nums like 5,4,3,2,1 that loading renumbers to
+            // 1..n, so remap them the same way or they land on other waypoints.
+            // (Very old plans without saved nums keep their keys unchanged.)
+            var planHasNums = plan.waypoints.every(function(w) { return typeof w.num === 'number'; });
+            if (planHasNums) {
+                ['waypointLabelOffsets', 'waypointLabelStyles'].forEach(function(field) {
+                    var src = appState[field] || {}, out = {};
+                    Object.keys(src).forEach(function(num) {
+                        var loadedNum = savedNumToLoadedNum[parseInt(num, 10)];
+                        if (loadedNum) out[loadedNum] = src[num];
+                    });
+                    appState[field] = out;
+                });
+            }
             updateRoute();
 
             // Center the map on the loaded route so it's visible right away,

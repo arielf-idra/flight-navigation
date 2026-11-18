@@ -129,6 +129,21 @@ touching it. Brief map:
   leg popup), climb ground speed up to top-of-climb and then cruise. Every time
   readout (leg boxes, waypoint labels, totals, prints, fuel) goes through it, so
   don't reintroduce inline `distance / cruiseSpeed`. No wind model.
+  - For a point *partway* along a leg, use `secondsAlongLeg(i, dNm)` (time to
+    fly the first dNm, climb-aware) and its inverse `distanceAlongLegAt(i, secs)`.
+    `legSeconds` is built on them. Ident-pin times and committed-leg minute ticks
+    use them, so ticks bunch up during a climb.
+  - Cruise speed must pass `validCruiseSpeed()` (finite and > 0). A speed of 0
+    once made leg times Infinity, and `drawMinuteTicks`' loop hung the tab.
+    Input, settings and plan restore all go through the check.
+- **Per-waypoint/per-leg state is keyed by `wp.num` (or `"numA_numB"`) or by leg
+  index.** That covers `waypointLabelOffsets`/`Styles`, `miniWaypoints`,
+  `legBoxHidden`, `legLabelDraggedPositions`, `legAltitudes` and `legClimbs`.
+  Anything that renumbers or reorders waypoints must remap all of these: delete,
+  Split Leg, list reorder (`reorderWaypoint`) and plan load (`_finishApplyPlan`)
+  do. `clearRoute()` resets them and removes every route-related layer (wind
+  tables, TOC markers, ±45° guides included). Add any new keyed field to all of
+  those places.
 - **Waypoint labels** show the leg time, then the accumulated time in brackets,
   e.g. `06:14 (13:08)`. `computeAccumulatedTimeMap()` builds the accumulated
   values. The brackets are controlled by `appState.accumTimeVisible` ("Hide/Show

@@ -79,6 +79,7 @@
                         <button class="btn-primary"   id="waypointLabelsToggleBtn" onclick="toggleWaypointLabels()" style="font-size: 11px; padding: 6px 8px;">Hide WP Labels</button>
                         <button class="btn-primary"  id="driftLinesToggleBtn" onclick="toggleDriftLines()" style="font-size: 11px; padding: 6px 8px;">Hide Drift Lines</button>
                         <button class="btn-primary" id="legDistanceToggleBtn" onclick="toggleLegDistance()" style="font-size: 11px; padding: 6px 8px;">Hide Distance (NM)</button>
+                        <button class="btn-primary"   id="accumTimeToggleBtn" onclick="toggleAccumTime()" style="font-size: 11px; padding: 6px 8px;">Hide Accum. Time</button>
                         <button class="btn-primary"   id="vorInfoToggleBtn" onclick="toggleVORInfo()" style="font-size: 11px; padding: 6px 8px;">Hide VOR Info</button>
                         <button class="btn-secondary" id="airstripsToggleBtn" onclick="toggleAirstrips()" style="font-size: 11px; padding: 6px 8px;">Show Airstrips</button>
                         <button class="btn-secondary" id="azimuthGuidesToggleBtn" onclick="toggleAzimuthGuides()" style="font-size: 11px; padding: 6px 8px;">Show ±45° Guides</button>
@@ -525,6 +526,7 @@
             waypointLabelStylesReverse: {},
             waypointLabelFontSize: 11,
             legTimeVisible: true,
+            accumTimeVisible: true, // total elapsed time "(MM:SS)" on each waypoint label
             waypointLabelStyles: {},
             timeMarkers: [],
             legLabels: [],
@@ -5716,7 +5718,7 @@ var cvfrRoutesData = [
                 (isMiniWp ? 'opacity:' + (appState.miniWpLabelOpacity !== undefined ? appState.miniWpLabelOpacity : 0.70) + ';' : '') + '">' +
                 (showName ? '<div style="font-size:' + nameFontSize + 'px;font-weight:700;">' + wp.name + '</div>' : '') +
                 (showTime && timeStr && appState.legTimeVisible !== false ? '<div style="font-size:' + timeFontSize + 'px;font-weight:600;opacity:0.8;">' + timeStr +
-                    (accumTimeStr ? ' <span style="opacity:0.65;font-weight:500;">(' + accumTimeStr + ')</span>' : '') +
+                    (accumTimeStr && appState.accumTimeVisible !== false ? ' <span style="opacity:0.65;font-weight:500;">(' + accumTimeStr + ')</span>' : '') +
                     '</div>' : '') +
                 vorInfoHtml +
                 '</div>';
@@ -5999,6 +6001,18 @@ var cvfrRoutesData = [
             if (btn) {
                 btn.textContent = appState.legTimeVisible ? 'Hide Leg Time' : 'Show Leg Time';
                 btn.className = appState.legTimeVisible ? 'btn-primary' : 'btn-secondary';
+            }
+            updateRoute();
+        }
+
+        // Show/hide the accumulated (total elapsed) time shown in brackets after
+        // the leg time on each waypoint label. Labels are rebuilt by updateRoute().
+        function toggleAccumTime() {
+            appState.accumTimeVisible = !appState.accumTimeVisible;
+            var btn = document.getElementById('accumTimeToggleBtn');
+            if (btn) {
+                btn.textContent = appState.accumTimeVisible ? 'Hide Accum. Time' : 'Show Accum. Time';
+                btn.className = appState.accumTimeVisible ? 'btn-primary' : 'btn-secondary';
             }
             updateRoute();
         }

@@ -46,10 +46,6 @@
            there's actually something to say (JS sets/clears its content). */
         #folderStatusNotice:empty { display: none !important; }
 
-        /* Compact form fields (NOTAM Filters and similar dense sub-panels) */
-        .notam-field-label { display: block; font-size: 10px; color: #666; margin-bottom: 2px; }
-        .notam-field-input { width: 100%; padding: 3px 5px; border: 1px solid #ddd; border-radius: 4px; font-size: 11px; box-sizing: border-box; }
-
         /* Buttons */
         .button-group { display: grid; grid-template-columns: 1fr 1fr; gap: 0.5rem; margin-bottom: 0.5rem; }
         button { font-family: var(--font); padding: 0.625rem 1rem; border: 1px solid transparent; border-radius: var(--radius-sm); font-weight: 500; cursor: pointer; transition: background-color 0.15s, border-color 0.15s; font-size: 0.875rem; }

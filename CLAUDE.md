@@ -159,60 +159,14 @@ is therefore dormant. To document a user-visible change: add a `CHANGELOG` entry
 for the current version, or bump `APP_VERSION` (plus the two static copies) and
 append the new version to `versionOrder`.
 
-## NOTAM overlay
+## Removed features
 
-Live Israeli NOTAMs, plotted on the map and listed in a collapsible sidebar section
-("NOTAMs" — the toggle/refresh/status/list are always visible; everything
-configuration-related lives behind the "⚙️ NOTAM Filters" collapsible, same UI
-pattern as Display Settings).
-
-- **Data source**: a companion project,
-  [notam-isr](https://github.com/arielf-idra/notam-isr), scrapes Israel Airports
-  Authority's live NOTAM page server-side (a real headless browser clears its
-  bot-management challenge, then clicks each row's "+" to capture the *full* ICAO
-  text via the AJAX response rather than the truncated preview the page shows by
-  default) and republishes the result as a static `notams.json` every ~10 minutes.
-  `fetchNotamsFromUrl()` tries `arielf-idra.github.io/notam-isr/notams.json` first,
-  falling back to the `raw.githubusercontent.com` copy — the latter is a known
-  target for corporate/network firewalls to block outright, confirmed by testing,
-  so Pages is primary. NOTAMs are fetched proactively on page load (`fetchNotams()`
-  in the init sequence) since it's a small CDN-served file; the map layer itself
-  still stays off by default (`notamsVisible: false`).
-- **Every NOTAM carries a `position`** (lat/lon/radiusNm) tagged `source: "e_text"`
-  (precise, parsed from a "CENTERED ON PSN ... RADIUS" phrase) or `"q_line"` (the
-  ICAO Q-line's mandatory summary position/radius, precise only to the nearest
-  arc-minute — every NOTAM has one per Annex 15, even multi-point boundary NOTAMs
-  whose vertex list can't safely be reduced to one shape). Q-line-sourced circles
-  render dashed specifically so they're never mistaken for an exact affected area;
-  some (e.g. FIR-wide restrictions) can have an 80+ NM radius — this is the Q-line's
-  generic locator, not a real depiction of the shape, especially for NOTAMs that are
-  actually about a border/linear corridor rather than a circular area.
-- **Multi-vertex boundary NOTAMs (`"BTN [THE] FLW PSN(S) ..."`) are never drawn as
-  polygons** — not even as an approximate centroid. Confirmed directly during
-  development: the source page silently truncates NOTAM text with no ellipsis, so a
-  vertex list that ends cleanly can still be missing real vertices. Only the Q-line
-  fallback circle is shown for these.
-- **Relevance filtering** (`getFilteredNotams()`) hides NOTAMs by default rather than
-  just sorting them (there's no sort — removed once filtering covered the same need):
-  a NOTAM is shown if it's within the (configurable) route corridor width, OR at/near
-  the selected takeoff/landing airport (exact ICAO match — PAMAT landing grounds are
-  deliberately excluded from those two dropdowns since this app has no verified ICAO
-  code for them, see the data-integrity rule above), AND its Q-line `traffic` field
-  matches the selected flight rules (VFR hides IFR-only, IFR hides VFR-only, All
-  disables this check) AND its Q-line `purpose` qualifier contains `B` (selected for
-  PIB) unless the purpose filter is set to All. An unparseable/missing field (Q-line
-  altitude, purpose) is never treated as grounds for exclusion — only a confidently
-  *known* mismatch hides a NOTAM. "Show all ISR NOTAMs" bypasses all of the above.
-- **Settings persistence**: `notamOpacity`, `notamFlightDate`, `notamShowAll`,
-  `notamCorridorWidth`, `notamFlightRules`, `notamPurposeFilter` live in
-  `DEFAULT_SETTINGS`/`collectSettings()`/`applySettings()` like any other display
-  setting. `notamTakeoffSelect`/`notamLandingSelect` additionally save *with the
-  flight plan* (`planToJson()`/`_finishApplyPlan()`), since they're route-specific.
-- **`updateRoute()` debounces the NOTAM list refresh** (`scheduleNotamPanelRefresh()`,
-  300ms) rather than calling `updateNotamPanel()` directly — `updateRoute()` fires
-  continuously during a waypoint drag and in a tight loop while a saved plan's
-  waypoints load; recomputing distance-to-route for ~90 NOTAMs on every one of those
-  calls caused visible jank before this was added.
+- **NOTAMs** (tab, map overlay, notam-isr fetch, filters, settings and plan fields)
+  were removed entirely in Nov 2026 at the user's request. Don't re-add them.
+  Old settings files and plans may still carry `notam*` keys, which are silently
+  ignored. A remembered active tab of `notams` falls back to Route
+  (`switchDashboardTab()` falls back for any unknown tab).
+- **LSA/AZM reporting points**: see the Data tables section.
 
 ## Testing workflow
 
@@ -254,11 +208,6 @@ Practical gotchas:
   missing routes and correct/remove stale ones (the automated topology source is
   known incomplete — see its comment block).
 - Most `airstripsData`/`pamatLandingGroundsData` entries have no runway heading yet.
-- `pamatLandingGroundsData` entries have no `icao` field, so they don't appear in the
-  NOTAM takeoff/landing dropdowns (only real `LL`-prefix airports do). If verified
-  ICAO/PAMAT codes for specific landing grounds are supplied, add an `icao` field to
-  the relevant `pamatLandingGroundsData` entries and they'll appear automatically —
-  don't guess codes from memory (see the data-integrity rule above).
 - A saved flight plan or `waypoints.json` group from before the chart-overlay removal
   can still reference `"Air Nav Chart"`/`"AZM Chart"` as a map name. `_finishApplyPlan()`
   falls back to OpenStreetMap so loading such a plan doesn't crash; a waypoints-file

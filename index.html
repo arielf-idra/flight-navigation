@@ -36,7 +36,6 @@
             <div class="dashboard-tabs" id="dashboardTabs">
                 <button class="dashboard-tab-btn active" data-tab="route" onclick="switchDashboardTab('route')"><span class="dashboard-tab-icon">🧭</span>Route</button>
                 <button class="dashboard-tab-btn" data-tab="layers" onclick="switchDashboardTab('layers')"><span class="dashboard-tab-icon">🗺️</span>Layers</button>
-                <button class="dashboard-tab-btn" data-tab="notams" onclick="switchDashboardTab('notams')"><span class="dashboard-tab-icon">📡</span>NOTAMs</button>
                 <button class="dashboard-tab-btn" data-tab="data" onclick="switchDashboardTab('data')"><span class="dashboard-tab-icon">📊</span>Data</button>
                 <button class="dashboard-tab-btn" data-tab="settings" onclick="switchDashboardTab('settings')"><span class="dashboard-tab-icon">⚙️</span>Settings</button>
                 <button class="dashboard-tab-btn" data-tab="plans" onclick="switchDashboardTab('plans')"><span class="dashboard-tab-icon">💾</span>Plans</button>
@@ -82,88 +81,6 @@
                         <button class="btn-primary"   id="vorInfoToggleBtn" onclick="toggleVORInfo()" style="font-size: 11px; padding: 6px 8px;">Hide VOR Info</button>
                         <button class="btn-secondary" id="airstripsToggleBtn" onclick="toggleAirstrips()" style="font-size: 11px; padding: 6px 8px;">Show Airstrips</button>
                         <button class="btn-secondary" id="azimuthGuidesToggleBtn" onclick="toggleAzimuthGuides()" style="font-size: 11px; padding: 6px 8px;">Show ±45° Guides</button>
-                    </div>
-                </div>
-
-            <div class="panel" data-tab="notams">
-                <!-- NOTAM Subsection (compact: only toggle/refresh/status/list
-                     are always visible; everything configuration-related is
-                     tucked behind the "NOTAM Filters" collapsible, same
-                     pattern as Display Settings) -->
-                <h2 id="notamSectionHeading">NOTAMs</h2>
-                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 6px; margin-bottom: 6px;">
-                        <button class="btn-secondary" id="notamToggleBtn" onclick="toggleNotams()" style="font-size: 11px; padding: 6px 8px;">Show NOTAMs</button>
-                        <button class="btn-secondary" id="notamRefreshBtn" onclick="fetchNotams()" style="font-size: 11px; padding: 6px 8px;">Refresh</button>
-                    </div>
-                    <div id="notamStatus" style="font-size: 10px; color: #888; margin-bottom: 4px;">Not loaded yet — click Refresh</div>
-                    <div id="notamDisclaimer" style="font-size: 9px; color: #b00020; margin-bottom: 6px; font-style: italic;">Informational only — not a substitute for an official pre-flight briefing.</div>
-                    <div id="notamList" style="max-height: 140px; overflow-y: auto; font-size: 11px; margin-bottom: 6px;"></div>
-
-                    <button id="toggleNotamConfigBtn" onclick="toggleNotamConfig()" style="width: 100%; padding: 5px 8px; background: var(--surface-alt); color: var(--text); border: none; border-radius: 4px; cursor: pointer; font-weight: 600; text-align: left; display: flex; justify-content: space-between; align-items: center; font-size: 11px;">
-                        <span>⚙️ <span id="notamConfigHeading">NOTAM Filters</span></span>
-                        <span id="notamConfigArrow">▼</span>
-                    </button>
-                    <div id="notamConfigPanel" style="display: none; margin-top: 8px;">
-                        <label for="notamFlightDateInput" id="notamFlightDateLabel" class="notam-field-label">Flight date (defaults to now)</label>
-                        <input type="date" id="notamFlightDateInput" onchange="renderNotams()" class="notam-field-input" style="margin-bottom: 6px;">
-
-                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 6px; margin-bottom: 6px;">
-                            <div>
-                                <label for="notamTakeoffSelect" id="notamTakeoffLabel" class="notam-field-label">Takeoff</label>
-                                <select id="notamTakeoffSelect" onchange="renderNotams()" class="notam-field-input">
-                                    <option value="" id="notamTakeoffNone">None</option>
-                                </select>
-                            </div>
-                            <div>
-                                <label for="notamLandingSelect" id="notamLandingLabel" class="notam-field-label">Landing</label>
-                                <select id="notamLandingSelect" onchange="renderNotams()" class="notam-field-input">
-                                    <option value="" id="notamLandingNone">None</option>
-                                </select>
-                            </div>
-                        </div>
-
-                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 6px; margin-bottom: 6px;">
-                            <div>
-                                <label for="notamCorridorWidth" id="notamCorridorLabel" class="notam-field-label">Corridor (NM)</label>
-                                <input type="number" id="notamCorridorWidth" min="0" max="50" step="1" value="5" onchange="renderNotams()" class="notam-field-input">
-                            </div>
-                            <div>
-                                <label for="notamFlightRules" id="notamFlightRulesLabel" class="notam-field-label">Flight rules</label>
-                                <select id="notamFlightRules" onchange="renderNotams()" class="notam-field-input">
-                                    <option value="VFR" id="notamFlightRulesVFR" title="Hide IFR-only NOTAMs">VFR</option>
-                                    <option value="IFR" id="notamFlightRulesIFR" title="Hide VFR-only NOTAMs">IFR</option>
-                                    <option value="ALL" id="notamFlightRulesAll" title="No traffic-type filtering">All</option>
-                                </select>
-                            </div>
-                        </div>
-
-                        <label for="notamPurposeFilter" id="notamPurposeLabel" class="notam-field-label">Briefing purpose</label>
-                        <select id="notamPurposeFilter" onchange="renderNotams()" class="notam-field-input" style="margin-bottom: 8px;">
-                            <option value="B" id="notamPurposeB" title="Q-line purpose contains B (selected for Pre-flight Information Bulletin)">PIB only (B)</option>
-                            <option value="ALL" id="notamPurposeAll" title="No purpose-qualifier filtering">All</option>
-                        </select>
-
-                        <label style="display: flex; align-items: center; gap: 5px; font-size: 10px; color: #666; margin-bottom: 8px; cursor: pointer;">
-                            <input type="checkbox" id="notamShowAll" onchange="renderNotams()">
-                            <span id="notamShowAllLabel">Show all ISR NOTAMs (ignore filtering)</span>
-                        </label>
-
-                        <label for="notamOpacity" id="notamOpacityLabel" style="display: block; font-size: 10px; color: #666; margin-bottom: 2px;">
-                            NOTAM Circle Opacity: <strong><span id="notamOpacityValue">5</span>%</strong>
-                        </label>
-                        <input type="range" id="notamOpacity" min="0" max="100" value="5" step="5" style="width: 100%; margin-bottom: 8px;">
-
-                        <div id="notamLegend" style="font-size: 9px; color: #666; line-height: 1.5;">
-                            <div><span style="display:inline-block;width:7px;height:7px;border-radius:50%;background:#e53935;margin-right:4px;"></span><span id="notamLegendClosure">Closure</span> ·
-                                <span style="display:inline-block;width:7px;height:7px;border-radius:50%;background:#fb8c00;margin-right:4px;margin-left:4px;"></span><span id="notamLegendHazard">Hazard</span> ·
-                                <span style="display:inline-block;width:7px;height:7px;border-radius:50%;background:#fdd835;margin-right:4px;margin-left:4px;"></span><span id="notamLegendOther">Other</span>
-                            </div>
-                            <div id="notamLegendStyle" style="font-style: italic;">Dashed = approx. position (Q-line) · Solid = precise</div>
-                            <div>
-                                <span style="font-size:8px;color:#fff;background:#e53935;border-radius:3px;padding:1px 3px;">ALONG ROUTE</span>
-                                <span id="notamLegendAlongRoute"> = within 5NM of your route</span>
-                            </div>
-                        </div>
                     </div>
                 </div>
 
@@ -553,14 +470,6 @@
             infoBoxFontMultiplier: 1.6364,
             airspaceZones: [],
             airspaceVisible: false,
-            notams: [],
-            notamMarkers: [],
-            notamMarkersById: {},
-            notamOpacity: 0.05,
-            notamsVisible: false,
-            notamsLoading: false,
-            notamsError: null,
-            notamsLastFetched: null,
             isDrawing: false,
             debugMode: false,
             map: null,
@@ -1269,41 +1178,6 @@ var cvfrRoutesData = [
                 hideFrequencies: "Hide Frequencies",
                 showVOR: "Show VOR",
                 hideVOR: "Hide VOR",
-                showNOTAMs: "Show NOTAMs",
-                hideNOTAMs: "Hide NOTAMs",
-                notamsSectionTitle: "NOTAMs",
-                notamsRefresh: "Refresh",
-                notamsLoading: "Loading NOTAMs...",
-                notamsError: "Failed to load NOTAMs:",
-                notamsLastUpdated: "Last updated:",
-                notamsNotLoaded: "Not loaded yet — click Refresh",
-                notamsDisclaimer: "Informational only — not a substitute for an official pre-flight briefing.",
-                notamFlightDateLabel: "Flight date (defaults to now)",
-                notamsRelevantSuffix: " relevant",
-                notamOpacityLabel: "NOTAM Circle Opacity:",
-                notamLegendClosure: "Closure",
-                notamLegendHazard: "Hazard (balloon / UAS / firefighting / obstacle)",
-                notamLegendOther: "Other",
-                notamLegendStyle: "Dashed outline = approximate position (Q-line) · Solid = precise position",
-                notamLegendAlongRoute: " = within {n}NM of your route",
-                notamTakeoffLabel: "Takeoff place",
-                notamLandingLabel: "Landing place",
-                notamLocationNone: "None",
-                notamCorridorLabel: "Route corridor width (NM)",
-                notamShowAllLabel: "Show all ISR NOTAMs (ignore relevance filtering)",
-                notamFlightRulesLabel: "Flight rules",
-                notamFlightRulesVFR: "VFR",
-                notamFlightRulesIFR: "IFR",
-                notamFlightRulesAll: "All",
-                notamFlightRulesVFRTitle: "Hide IFR-only NOTAMs",
-                notamFlightRulesIFRTitle: "Hide VFR-only NOTAMs",
-                notamFlightRulesAllTitle: "No traffic-type filtering",
-                notamConfigHeading: "NOTAM Filters",
-                notamPurposeLabel: "Briefing purpose",
-                notamPurposeB: "PIB only (B)",
-                notamPurposeAll: "All",
-                notamPurposeBTitle: "Q-line purpose contains B (selected for Pre-flight Information Bulletin)",
-                notamPurposeAllTitle: "No purpose-qualifier filtering",
                 showVORInfo: "Show VOR Info",
                 hideVORInfo: "Hide VOR Info",
                 showAirstrips: "Show Airstrips",
@@ -1366,41 +1240,6 @@ var cvfrRoutesData = [
                 hideFrequencies: "הסתר תדרים",
                 showVOR: "הצג VOR",
                 hideVOR: "הסתר VOR",
-                showNOTAMs: "הצג נוטם",
-                hideNOTAMs: "הסתר נוטם",
-                notamsSectionTitle: "נוטם",
-                notamsRefresh: "רענן",
-                notamsLoading: "טוען נוטמים...",
-                notamsError: "טעינת הנוטמים נכשלה:",
-                notamsLastUpdated: "עודכן לאחרונה:",
-                notamsNotLoaded: "טרם נטען — לחץ על רענן",
-                notamsDisclaimer: "למידע בלבד — אינו תחליף לתדריך טיסה רשמי.",
-                notamFlightDateLabel: "תאריך הטיסה (ברירת מחדל: עכשיו)",
-                notamsRelevantSuffix: " רלוונטיים",
-                notamOpacityLabel: "שקיפות מעגלי נוטם:",
-                notamLegendClosure: "סגירה",
-                notamLegendHazard: "סכנה (בלון / כטב״מ / כיבוי אש / מכשול)",
-                notamLegendOther: "אחר",
-                notamLegendStyle: "קו מקווקו = מיקום משוער (Q-line) · קו רציף = מיקום מדויק",
-                notamLegendAlongRoute: " = בטווח {n} מייל ימי מהמסלול",
-                notamTakeoffLabel: "מקום המראה",
-                notamLandingLabel: "מקום נחיתה",
-                notamLocationNone: "ללא",
-                notamCorridorLabel: "רוחב מסדרון המסלול (מייל ימי)",
-                notamShowAllLabel: "הצג את כל הנוטמים בישראל (התעלם מסינון רלוונטיות)",
-                notamFlightRulesLabel: "כללי טיסה",
-                notamFlightRulesVFR: "VFR",
-                notamFlightRulesIFR: "IFR",
-                notamFlightRulesAll: "הכל",
-                notamFlightRulesVFRTitle: "הסתר נוטמים ל-IFR בלבד",
-                notamFlightRulesIFRTitle: "הסתר נוטמים ל-VFR בלבד",
-                notamFlightRulesAllTitle: "ללא סינון לפי סוג תעבורה",
-                notamConfigHeading: "מסנני נוטם",
-                notamPurposeLabel: "מטרת תדריך",
-                notamPurposeB: "PIB בלבד (B)",
-                notamPurposeAll: "הכל",
-                notamPurposeBTitle: "שדה המטרה ב-Q-line מכיל B (נבחר לתדריך טרום טיסה - PIB)",
-                notamPurposeAllTitle: "ללא סינון לפי מטרה",
                 showVORInfo: "הצג מידע VOR",
                 hideVORInfo: "הסתר מידע VOR",
                 showAirstrips: "הצג מנחתים",
@@ -1751,14 +1590,6 @@ var cvfrRoutesData = [
             initCVFRPoints();
             initCVFRRoutes();
             setTimeout(refreshCVFRPointRotation, 500);
-            // Fetch NOTAM data proactively - it's a small static JSON file
-            // served via a CDN (typically well under 1s), so there's no
-            // reason to make the user click "Refresh" just to see the
-            // sidebar list populate. The map layer itself still stays off by
-            // default (notamsVisible starts false); this only warms the data
-            // and the list. Refresh remains available for a manual re-pull.
-            fetchNotams();
-            populateNotamLocationSelects();
             var _initialTab = 'route';
             try { _initialTab = localStorage.getItem('flightPlannerActiveDashboardTab') || 'route'; } catch (e) {}
             switchDashboardTab(_initialTab);
@@ -2064,538 +1895,6 @@ var cvfrRoutesData = [
                     btn.classList.remove('btn-primary');
                     btn.classList.add('btn-secondary');
                 }
-            }
-        }
-
-        // NOTAM overlay. Source: a companion project (notam-isr) that
-        // scrapes Israel Airports Authority's live NOTAM page server-side -
-        // using a real headless browser to clear its bot-management
-        // challenge, and clicking each row's "+" to capture the FULL ICAO
-        // text via the AJAX response instead of the truncated preview the
-        // page shows by default - and republishes the result as a static
-        // JSON file every ~10 minutes via raw.githubusercontent.com (which
-        // serves proper CORS headers, so this fetches directly, no proxy
-        // needed). Scraper: https://github.com/arielf-idra/notam-isr
-        // Human-readable viewer: https://arielf-idra.github.io/notam-isr/
-        //
-        // Every NOTAM in that feed carries a `position` (lat/lon/radiusNm)
-        // tagged with a `source`:
-        //   - "e_text": parsed from a precise "CENTERED ON PSN ... RADIUS"
-        //     phrase in the full NOTAM text, when present.
-        //   - "q_line": the ICAO Q-line's mandatory summary position, which
-        //     every NOTAM has per Annex 15 (even multi-point boundary NOTAMs
-        //     whose vertex list can't safely be reduced to one shape) -
-        //     precise only to the nearest arc-minute, and NOT the true shape
-        //     of a boundary NOTAM, just a rough locator for it. Rendered
-        //     dashed here specifically so it's never mistaken for an exact
-        //     affected area.
-        // Tried in order. raw.githubusercontent.com is the "canonical" way to
-        // fetch a single file from a repo, but it's a common target for
-        // corporate/network firewalls to block outright (it's a frequent
-        // vector for serving raw scripts that bypass content scanning) - seen
-        // this fail outright in testing while the identical file served via
-        // GitHub Pages worked fine. Try Pages first since it's the more
-        // reliably-reachable of the two; fall back to raw.githubusercontent
-        // in case Pages itself is ever down instead.
-        var NOTAM_API_URLS = [
-            'https://arielf-idra.github.io/notam-isr/notams.json',
-            'https://raw.githubusercontent.com/arielf-idra/notam-isr/main/notams.json'
-        ];
-        var NOTAM_COLORS = { closure: '#e53935', hazard: '#fb8c00', other: '#fdd835' };
-        var NOTAM_CENTER_ZOOM = 12;
-        var notamPanelRefreshTimer = null;
-
-        // Debounced wrapper around updateNotamPanel() - see the comment at
-        // its call site in updateRoute() for why this needs debouncing
-        // rather than calling straight through.
-        function scheduleNotamPanelRefresh() {
-            if (notamPanelRefreshTimer) clearTimeout(notamPanelRefreshTimer);
-            notamPanelRefreshTimer = setTimeout(function() {
-                notamPanelRefreshTimer = null;
-                updateNotamPanel();
-            }, 300);
-        }
-
-        // Takeoff/landing selector options: real Israeli airports only
-        // (ICAO codes starting "LL"). PAMAT landing grounds have no
-        // verified ICAO code in this app's data - per this project's
-        // data-integrity rule (CLAUDE.md: never hardcode aviation data like
-        // ICAO codes from memory), they're excluded here rather than shown
-        // by Hebrew name or matched by coordinate proximity. If/when
-        // verified LL-codes for specific landing grounds are supplied,
-        // add them to pamatLandingGroundsData with an `icao` field and
-        // they'll appear here automatically.
-        function getNotamKnownLocations() {
-            return airportsData
-                .filter(function(a) { return a.icao && a.icao.indexOf('LL') === 0; })
-                .map(function(a) { return { name: a.name, icao: a.icao, lat: a.lat, lng: a.lng }; });
-        }
-
-        // Stable identifier for a location option: ICAO code when it has
-        // one, otherwise its name (PAMAT grounds) - used as both the
-        // <option> value and the lookup key, so it round-trips through
-        // saved settings/plan JSON without depending on array position.
-        function notamLocationKey(loc) {
-            return loc.icao || loc.name;
-        }
-
-        function populateNotamLocationSelects() {
-            var locations = getNotamKnownLocations();
-            ['notamTakeoffSelect', 'notamLandingSelect'].forEach(function(id) {
-                var sel = document.getElementById(id);
-                if (!sel || sel.options.length > 1) return; // already populated
-                locations.forEach(function(loc) {
-                    var opt = document.createElement('option');
-                    opt.value = notamLocationKey(loc);
-                    opt.textContent = loc.name + (loc.icao ? ' (' + loc.icao + ')' : '');
-                    sel.appendChild(opt);
-                });
-            });
-        }
-
-        // Is this NOTAM at/near a takeoff/landing endpoint the user
-        // selected? Exact ICAO match when the endpoint has one; otherwise a
-        // proximity check against its coordinates (PAMAT grounds have no
-        // ICAO code to match against).
-        function notamNearEndpoint(n, endpoint) {
-            if (!endpoint) return false;
-            if (endpoint.icao) return n.location === endpoint.icao;
-            if (n.geometry && typeof endpoint.lat === 'number') {
-                var d = calculateDistance(n.geometry.center[0], n.geometry.center[1], endpoint.lat, endpoint.lng);
-                var radiusNm = n.geometry.radiusM ? (n.geometry.radiusM / 1852) : 0;
-                return d <= (radiusNm + 5);
-            }
-            return false;
-        }
-
-        function getSelectedNotamEndpoint(selectId) {
-            var sel = document.getElementById(selectId);
-            if (!sel || sel.value === '') return null;
-            var locations = getNotamKnownLocations();
-            return locations.filter(function(l) { return notamLocationKey(l) === sel.value; })[0] || null;
-        }
-        var notamListClickBound = false;
-
-        function escapeHtml(str) {
-            return String(str).replace(/[&<>"']/g, function(c) {
-                return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c];
-            });
-        }
-
-        function formatNotamValidity(n) {
-            if (!n.fromDate && !n.toDate) return '';
-            var fmt = function(iso) { return iso ? iso.slice(0, 16).replace('T', ' ') + ' UTC' : '?'; };
-            return 'Valid ' + fmt(n.fromDate) + ' → ' + fmt(n.toDate);
-        }
-
-        // Small route-proximity badge shared by the map popup and the
-        // sidebar list row, so both stay visually consistent.
-        function formatRouteBadge(n) {
-            var ri = n.routeInfo;
-            if (!ri) return '';
-            if (ri.intersects) {
-                var altNote = ri.altitudeOverlap === false ? ' (different altitude)' : '';
-                return '<span style="font-size:9px;color:#fff;background:#e53935;border-radius:3px;padding:1px 4px;">ALONG ROUTE' + altNote + '</span>';
-            }
-            return '<span style="font-size:9px;color:#888;">~' + ri.distanceNm.toFixed(1) + ' NM from route</span>';
-        }
-
-        function mapApiNotam(raw) {
-            var text = raw.eText || '';
-            var category = 'other';
-            if (/CLSD|CLOSURE|PROHIBITED/i.test(text)) category = 'closure';
-            else if (/BALLOON|UAS|UAV|PJE|FIREFIGHTING|OBST|CRANE|PARACHUTE/i.test(text)) category = 'hazard';
-
-            var geometry = null;
-            if (raw.position && typeof raw.position.lat === 'number' && typeof raw.position.lon === 'number') {
-                geometry = {
-                    center: [raw.position.lat, raw.position.lon],
-                    radiusM: (typeof raw.position.radiusNm === 'number') ? raw.position.radiusNm * 1852 : null,
-                    source: raw.position.source
-                };
-            }
-
-            return {
-                id: raw.id,
-                location: raw.location,
-                text: text,
-                fromDate: raw.fromDate,
-                toDate: raw.toDate,
-                lowerLimit: raw.lowerLimit,
-                upperLimit: raw.upperLimit,
-                category: category,
-                geometry: geometry,
-                // Q-line traffic field ("I"/"V"/"IV") - used to hide
-                // IFR-only procedural notices by default, since this is a
-                // VFR/CVFR planner (see relevance filtering in
-                // getFilteredNotams).
-                traffic: raw.qLine ? raw.qLine.traffic : null,
-                // Q-line purpose qualifier - a combination of N (immediate
-                // attention), B (selected for PIB/Pre-flight Information
-                // Bulletin), O (operationally significant), M (miscellaneous)
-                // e.g. "BO", "NBO", "M". B specifically marks NOTAMs the
-                // issuing authority itself flagged as belonging in a standard
-                // pre-flight briefing - directly relevant for a briefing tool
-                // like this one, so it's the default filter.
-                purpose: raw.qLine ? raw.qLine.purpose : null
-            };
-        }
-
-        function fetchNotamsFromUrl(urlIndex) {
-            return fetch(NOTAM_API_URLS[urlIndex], { cache: 'no-store' })
-                .then(function(resp) {
-                    if (!resp.ok) throw new Error('HTTP ' + resp.status);
-                    return resp.json();
-                })
-                .catch(function(err) {
-                    if (urlIndex + 1 < NOTAM_API_URLS.length) {
-                        return fetchNotamsFromUrl(urlIndex + 1);
-                    }
-                    throw err;
-                });
-        }
-
-        function fetchNotams(isRetry) {
-            appState.notamsLoading = true;
-            appState.notamsError = null;
-            updateNotamPanel();
-
-            fetchNotamsFromUrl(0)
-                .then(function(data) {
-                    // `administrative` (e.g. Q-code QKKKK "checklist of valid
-                    // NOTAMs") flags entries that are bookkeeping, not real
-                    // restrictions/hazards - they even carry a placeholder
-                    // Q-line radius (999NM) that would draw a bogus map
-                    // circle spanning most of the region if plotted. Drop
-                    // them before they ever reach appState.notams, so they
-                    // can't appear on the map, in the sidebar, or in counts.
-                    appState.notams = (data.notams || [])
-                        .filter(function(raw) { return !raw.administrative; })
-                        .map(mapApiNotam);
-                    appState.notamsLastFetched = data.generatedAt ? new Date(data.generatedAt) : new Date();
-                    appState.notamsLoading = false;
-                    renderNotams();
-                })
-                .catch(function(err) {
-                    // Both URLs failed - a genuine network/DNS/firewall issue,
-                    // not just one host having a bad moment. One automatic
-                    // retry (from the top of the URL list again) smooths over
-                    // a transient blip before bothering the user with an error.
-                    if (!isRetry) {
-                        setTimeout(function() { fetchNotams(true); }, 2000);
-                        return;
-                    }
-                    appState.notamsLoading = false;
-                    appState.notamsError = (err && err.message) || 'Failed to fetch NOTAMs';
-                    updateNotamPanel();
-                });
-        }
-
-        // Default for the "Route Corridor Width" input - how far outside a
-        // NOTAM's own radius the route can still pass and count as "along
-        // route". NOTAM geometry here is often an approximate Q-line summary
-        // circle, not an exact boundary, so a flat margin gives pilots a
-        // sensible safety cushion rather than requiring the route to clip
-        // the circle exactly. User-adjustable; read live from the input in
-        // getFilteredNotams() rather than used directly.
-        var NOTAM_ROUTE_MARGIN_NM_DEFAULT = 5;
-
-        function getNotamCorridorNm() {
-            var input = document.getElementById('notamCorridorWidth');
-            var val = input ? parseFloat(input.value) : NaN;
-            return isNaN(val) ? NOTAM_ROUTE_MARGIN_NM_DEFAULT : val;
-        }
-
-        // Closest point on segment (lat1,lng1)-(lat2,lng2) to (lat,lng),
-        // using a local flat-plane approximation (equirectangular, scaled by
-        // cos(latitude)) to find the projection parameter t, then handed off
-        // to calculateDistance (haversine) for the actual NM measurement.
-        // Reasonable given Israel's small geographic extent - not accurate
-        // enough for charting, but plenty for a route-proximity sort/filter.
-        function closestPointOnSegment(lat, lng, lat1, lng1, lat2, lng2) {
-            var kx = Math.cos(lat1 * Math.PI / 180) || 0.0001;
-            var dx = (lng2 - lng1) * kx, dy = (lat2 - lat1);
-            var lenSq = dx * dx + dy * dy;
-            var t = lenSq === 0 ? 0 : (((lng - lng1) * kx * dx + (lat - lat1) * dy) / lenSq);
-            t = Math.max(0, Math.min(1, t));
-            return [lat1 + t * (lat2 - lat1), lng1 + t * (lng2 - lng1)];
-        }
-
-        // Minimum distance (NM) from (lat,lng) to the route polyline, plus
-        // which leg was closest (so the leg's own planned altitude can be
-        // looked up rather than only the route-wide default).
-        function distanceToRouteNm(lat, lng, waypoints) {
-            var best = Infinity, bestLeg = -1;
-            for (var i = 0; i < waypoints.length - 1; i++) {
-                var a = waypoints[i], b = waypoints[i + 1];
-                var cp = closestPointOnSegment(lat, lng, a.lat, a.lng, b.lat, b.lng);
-                var d = calculateDistance(lat, lng, cp[0], cp[1]);
-                if (d < best) { best = d; bestLeg = i; }
-            }
-            return { distanceNm: best, legIndex: bestLeg };
-        }
-
-        // Parses the NOTAM API's F)/G) limit strings ("GND", "SFC", "UNL",
-        // "FL045", "2,200FT AMSL", "50M AGL", ...) into a rough feet value.
-        // Returns null when unparseable - callers must treat null as
-        // "unknown", not "zero", so an unfamiliar format never silently
-        // demotes a NOTAM that might actually be relevant.
-        function parseNotamAltitudeFt(str) {
-            if (!str) return null;
-            var s = str.toUpperCase().trim();
-            if (/^(GND|SFC)$/.test(s)) return 0;
-            if (/^UNL$/.test(s)) return 60000;
-            var fl = /^FL\s*(\d+)/.exec(s);
-            if (fl) return parseInt(fl[1], 10) * 100;
-            var ft = /([\d,]+)\s*FT/.exec(s);
-            if (ft) return parseInt(ft[1].replace(/,/g, ''), 10);
-            var m = /([\d,]+)\s*M\b/.exec(s);
-            if (m) return Math.round(parseInt(m[1].replace(/,/g, ''), 10) * 3.28084);
-            return null;
-        }
-
-        // Tri-state: true/false when both the NOTAM's band and the planned
-        // altitude are known and can be compared, null when either side is
-        // unparseable/unknown - callers should treat null as "don't demote",
-        // since we can't be confident it's NOT relevant.
-        function notamAltitudeOverlapsPlan(n, plannedAltFt) {
-            var lower = parseNotamAltitudeFt(n.lowerLimit);
-            var upper = parseNotamAltitudeFt(n.upperLimit);
-            if (lower === null && upper === null) return null;
-            if (lower === null) lower = 0;
-            if (upper === null) upper = 60000;
-            var marginFt = 500; // NOTAM altitude bands are approximate; give a cushion
-            return plannedAltFt >= (lower - marginFt) && plannedAltFt <= (upper + marginFt);
-        }
-
-        // Resolves the "Flight date" input into the window of NOTAM
-        // relevance to filter by. No date entered -> assume "now": strictly
-        // currently-active (fromDate <= now <= toDate). A date entered ->
-        // widen to that whole calendar day (local time), since a plain date
-        // picker has no time component to be more precise with - any NOTAM
-        // overlapping that day at all is considered relevant.
-        //
-        // Also computes each NOTAM's `routeInfo` (distance to the current
-        // route, whether it's "along route" within the corridor width, and
-        // whether the planned altitude at the closest leg overlaps the
-        // NOTAM's altitude band) - used by the relevance filter below (to
-        // hide out-of-corridor NOTAMs) and by formatRouteBadge (to show
-        // "ALONG ROUTE" / "~X NM from route"). Does NOT reorder the list -
-        // relevance filtering already decides what's worth showing, so
-        // results render in whatever order they arrive in.
-        function getFilteredNotams() {
-            var input = document.getElementById('notamFlightDateInput');
-            var from, to;
-            if (input && input.value) {
-                var d = new Date(input.value + 'T00:00:00');
-                from = new Date(d.getFullYear(), d.getMonth(), d.getDate(), 0, 0, 0);
-                to = new Date(d.getFullYear(), d.getMonth(), d.getDate(), 23, 59, 59, 999);
-            } else {
-                from = to = new Date();
-            }
-            var filtered = appState.notams.filter(function(n) {
-                var notamFrom = n.fromDate ? new Date(n.fromDate) : null;
-                var notamTo = n.toDate ? new Date(n.toDate) : null;
-                if (notamFrom && notamFrom > to) return false;
-                if (notamTo && notamTo < from) return false;
-                return true;
-            });
-
-            var waypoints = appState.waypoints;
-            var hasRoute = waypoints && waypoints.length >= 2;
-            var corridorNm = getNotamCorridorNm();
-
-            filtered.forEach(function(n) {
-                if (!n.geometry || !hasRoute) {
-                    n.routeInfo = null;
-                    return;
-                }
-                var res = distanceToRouteNm(n.geometry.center[0], n.geometry.center[1], waypoints);
-                var radiusNm = n.geometry.radiusM ? (n.geometry.radiusM / 1852) : 0;
-                var intersects = res.distanceNm <= (radiusNm + corridorNm);
-                var plannedAlt = res.legIndex >= 0 ? getLegAltitude(res.legIndex) : appState.defaultAltitude;
-                var altOverlap = notamAltitudeOverlapsPlan(n, plannedAlt);
-                // `intersects` (pure geometry: within the NOTAM's own radius
-                // plus the corridor margin) is what the relevance filter
-                // below uses to hide out-of-corridor NOTAMs. Altitude is
-                // informational only (surfaced via formatRouteBadge) - it
-                // never affects filtering, since a mismatch is only ever a
-                // hint, not certainty the NOTAM doesn't apply.
-                n.routeInfo = {
-                    distanceNm: res.distanceNm,
-                    intersects: intersects,
-                    altitudeOverlap: altOverlap
-                };
-            });
-
-            // Relevance filter (Q-line based): hidden entirely unless "Show
-            // all ISR NOTAMs" is checked. Two things make a NOTAM
-            // irrelevant-by-default: (1) its Q-line traffic type doesn't
-            // match the selected flight rules (default VFR - hides pure-IFR
-            // airway procedural notices like "ATS RTE ... AVBL H24 ...
-            // FL325" that just add noise for a VFR/CVFR flight); (2) once a
-            // route exists, it falls entirely outside the route corridor. A
-            // NOTAM at/near the selected takeoff or landing point is always
-            // kept regardless of either check, since it's unambiguously
-            // relevant to this specific flight.
-            var showAllEl = document.getElementById('notamShowAll');
-            var showAll = showAllEl && showAllEl.checked;
-            if (!showAll) {
-                var takeoff = getSelectedNotamEndpoint('notamTakeoffSelect');
-                var landing = getSelectedNotamEndpoint('notamLandingSelect');
-                var flightRulesEl = document.getElementById('notamFlightRules');
-                var flightRules = flightRulesEl ? flightRulesEl.value : 'VFR';
-                var purposeFilterEl = document.getElementById('notamPurposeFilter');
-                var purposeFilter = purposeFilterEl ? purposeFilterEl.value : 'B';
-                filtered = filtered.filter(function(n) {
-                    if (notamNearEndpoint(n, takeoff) || notamNearEndpoint(n, landing)) return true;
-                    if (flightRules === 'VFR' && n.traffic === 'I') return false;
-                    if (flightRules === 'IFR' && n.traffic === 'V') return false;
-                    // Only exclude on a KNOWN purpose that lacks B - an
-                    // unparseable/missing purpose is never treated as
-                    // "not PIB-worthy" (same conservative rule as altitude).
-                    if (purposeFilter === 'B' && n.purpose && n.purpose.indexOf('B') === -1) return false;
-                    if (hasRoute && n.routeInfo && !n.routeInfo.intersects) return false;
-                    return true;
-                });
-            }
-
-            return filtered;
-        }
-
-        function renderNotams() {
-            appState.notamMarkers.forEach(function(layer) { appState.map.removeLayer(layer); });
-            appState.notamMarkers = [];
-            appState.notamMarkersById = {};
-
-            getFilteredNotams().forEach(function(n) {
-                if (!n.geometry) return;
-                var color = NOTAM_COLORS[n.category] || NOTAM_COLORS.other;
-                var layer;
-                if (n.geometry.radiusM) {
-                    layer = L.circle(n.geometry.center, {
-                        radius: n.geometry.radiusM,
-                        color: color,
-                        fillColor: color,
-                        fillOpacity: appState.notamOpacity,
-                        weight: 2,
-                        dashArray: n.geometry.source === 'q_line' ? '4,3' : null
-                    });
-                    // Large, often-overlapping NOTAM circles would otherwise
-                    // swallow every click inside their whole filled area,
-                    // blocking normal map interactions (like placing a
-                    // waypoint) underneath them. Restrict the clickable hit
-                    // area to just the outline via SVG pointer-events -
-                    // 'visibleStroke' only registers clicks on the painted
-                    // stroke, letting clicks inside the fill pass through to
-                    // whatever's underneath. Set on 'add' since the <path>
-                    // DOM element doesn't exist until the layer is actually
-                    // on the map.
-                    layer.on('add', function() {
-                        var el = this.getElement && this.getElement();
-                        if (el) el.style.pointerEvents = 'visibleStroke';
-                    });
-                } else {
-                    layer = L.circleMarker(n.geometry.center, {
-                        radius: 6,
-                        color: color,
-                        fillColor: color,
-                        fillOpacity: 0.8,
-                        weight: 2
-                    });
-                }
-                var sourceLabel = n.geometry.source === 'q_line' ? 'approx. position' : 'precise position';
-                layer.bindPopup(
-                    '<strong>' + escapeHtml(n.id) + ' (' + escapeHtml(n.location) + ')</strong> ' +
-                    '<span style="font-size:10px;color:#888;">[' + sourceLabel + ']</span> ' + formatRouteBadge(n) + '<br>' +
-                    '<span style="font-size:11px;color:#666;">' + escapeHtml(formatNotamValidity(n)) + '</span><br>' +
-                    escapeHtml(n.text)
-                );
-                appState.notamMarkers.push(layer);
-                appState.notamMarkersById[n.id] = layer;
-                if (appState.notamsVisible) layer.addTo(appState.map);
-            });
-
-            updateNotamPanel();
-        }
-
-        function centerOnNotam(id) {
-            var n = appState.notams.filter(function(x) { return x.id === id; })[0];
-            if (!n || !n.geometry) return;
-            appState.map.setView(n.geometry.center, Math.max(appState.map.getZoom(), NOTAM_CENTER_ZOOM));
-            if (!appState.notamsVisible) toggleNotams();
-            var layer = appState.notamMarkersById[id];
-            if (layer) layer.openPopup();
-        }
-
-        function updateNotamPanel() {
-            var statusEl = document.getElementById('notamStatus');
-            var listEl = document.getElementById('notamList');
-            if (!statusEl || !listEl) return;
-            var t = translations[appState.language];
-
-            var filtered = getFilteredNotams();
-
-            var alongRouteEl = document.getElementById('notamLegendAlongRoute');
-            if (alongRouteEl) {
-                var suffix = t.notamLegendAlongRoute || ' = within {n}NM of your route';
-                alongRouteEl.textContent = suffix.replace('{n}', getNotamCorridorNm());
-            }
-
-            if (appState.notamsLoading) {
-                statusEl.textContent = t.notamsLoading || 'Loading NOTAMs...';
-            } else if (appState.notamsError) {
-                statusEl.textContent = (t.notamsError || 'Failed to load NOTAMs:') + ' ' + appState.notamsError;
-            } else if (appState.notamsLastFetched) {
-                var countText = filtered.length + '/' + appState.notams.length + (t.notamsRelevantSuffix || ' relevant');
-                statusEl.textContent = (t.notamsLastUpdated || 'Last updated:') + ' ' + appState.notamsLastFetched.toLocaleTimeString() + ' — ' + countText;
-            } else {
-                statusEl.textContent = t.notamsNotLoaded || 'Not loaded yet — click Refresh';
-            }
-
-            listEl.innerHTML = filtered.map(function(n) {
-                var color = NOTAM_COLORS[n.category] || NOTAM_COLORS.other;
-                var clickable = !!n.geometry;
-                var rowStyle = 'padding:4px 0; border-bottom:1px solid #eee;' + (clickable ? ' cursor:pointer;' : ' opacity:0.7;');
-                var badge = n.geometry
-                    ? '<span style="font-size:9px;color:#888;">[' + (n.geometry.source === 'q_line' ? 'approx.' : 'precise') + ']</span>'
-                    : '';
-                var routeBadge = formatRouteBadge(n);
-                return '<div' + (clickable ? ' data-notam-id="' + escapeHtml(n.id) + '"' : '') + ' style="' + rowStyle + '">' +
-                    '<span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:' + color + ';margin-right:4px;"></span>' +
-                    '<strong>' + escapeHtml(n.id) + ' (' + escapeHtml(n.location) + ')</strong> ' + badge +
-                    (routeBadge ? ' ' + routeBadge : '') + '<br>' +
-                    '<span style="font-size:11px;color:#555;">' + escapeHtml(n.text) + '</span></div>';
-            }).join('');
-
-            if (!notamListClickBound) {
-                listEl.addEventListener('click', function(e) {
-                    var row = e.target.closest('[data-notam-id]');
-                    if (row) centerOnNotam(row.getAttribute('data-notam-id'));
-                });
-                notamListClickBound = true;
-            }
-        }
-
-        function toggleNotams() {
-            appState.notamsVisible = !appState.notamsVisible;
-            var btn = document.getElementById('notamToggleBtn');
-
-            if (appState.notamsVisible) {
-                if (btn) {
-                    btn.textContent = translations[appState.language].hideNOTAMs || 'Hide NOTAMs';
-                    btn.classList.add('btn-primary');
-                    btn.classList.remove('btn-secondary');
-                }
-                appState.notamMarkers.forEach(function(layer) { layer.addTo(appState.map); });
-                if (!appState.notamsLastFetched && !appState.notamsLoading) fetchNotams();
-            } else {
-                if (btn) {
-                    btn.textContent = translations[appState.language].showNOTAMs || 'Show NOTAMs';
-                    btn.classList.remove('btn-primary');
-                    btn.classList.add('btn-secondary');
-                }
-                appState.notamMarkers.forEach(function(layer) { appState.map.removeLayer(layer); });
             }
         }
 
@@ -3042,6 +2341,8 @@ var cvfrRoutesData = [
         // stacked-card sidebar). Panels declare their tab via a data-tab
         // attribute; several panels can share the same tab.
         function switchDashboardTab(tab) {
+            // Fall back to Route if the remembered tab no longer exists (e.g. the removed NOTAMs tab).
+            if (!document.querySelector('.dashboard-tab-btn[data-tab="' + tab + '"]')) tab = 'route';
             document.querySelectorAll('.panel[data-tab]').forEach(function(p) {
                 p.classList.toggle('tab-active', p.getAttribute('data-tab') === tab);
             });
@@ -3060,8 +2361,8 @@ var cvfrRoutesData = [
                     icon: '&#128640;',
                     title: 'Welcome',
                     items: [
-                        'A tabbed dashboard (Route / Layers / NOTAMs / Data / Settings / Plans / About) keeps every tool close at hand without a long scroll',
-                        'Draw routes, manage waypoints, track NOTAMs, and export flight plans — all from one map-first workspace'
+                        'A tabbed dashboard (Route / Layers / Data / Settings / Plans / About) keeps every tool close at hand without a long scroll',
+                        'Draw routes, manage waypoints, and export flight plans — all from one map-first workspace'
                     ]
                 },
                 {
@@ -3081,8 +2382,16 @@ var cvfrRoutesData = [
                     items: [
                         'Optional ±45° azimuth guide lines from each waypoint (Layers tab)',
                         'Exported A4/A3 maps now include a nautical-mile scale bar and default to zoom 12; A3 covers twice the A4 area at the same print scale',
-                        'Ident points now stay attached to the correct leg after reordering waypoints, Split Leg, or Remove',
-                        'The LSA/AZM reporting points layer has been removed'
+                        'Ident points now stay attached to the correct leg after reordering waypoints, Split Leg, or Remove'
+                    ]
+                },
+                {
+                    version: 'v1.1',
+                    icon: '&#128465;',
+                    title: 'Removed',
+                    items: [
+                        'The NOTAMs tab and NOTAM map overlay',
+                        'The LSA/AZM reporting points layer'
                     ]
                 }
                 ];
@@ -4371,17 +3680,6 @@ var cvfrRoutesData = [
                 document.getElementById('miniWpOpacityValue').textContent = e.target.value;
                 updateRoute();
             });
-            document.getElementById('notamOpacity').addEventListener('input', function(e) {
-                appState.notamOpacity = parseFloat(e.target.value) / 100;
-                document.getElementById('notamOpacityValue').textContent = e.target.value;
-                // Only the radius-based area circles (L.Circle) - the small
-                // fixed-size point markers (plain L.CircleMarker) stay at
-                // their own fixed opacity since they're not what causes
-                // visual overload when many NOTAMs overlap.
-                appState.notamMarkers.forEach(function(layer) {
-                    if (layer instanceof L.Circle) layer.setStyle({ fillOpacity: appState.notamOpacity });
-                });
-            });
 
             document.getElementById('driftColor').addEventListener('input', function(e) {
                 appState.driftColor = e.target.value;
@@ -4419,19 +3717,6 @@ var cvfrRoutesData = [
             }
         }
         
-        function toggleNotamConfig() {
-            var panel = document.getElementById('notamConfigPanel');
-            var arrow = document.getElementById('notamConfigArrow');
-
-            if (panel.style.display === 'none') {
-                panel.style.display = 'block';
-                arrow.textContent = '▲';
-            } else {
-                panel.style.display = 'none';
-                arrow.textContent = '▼';
-            }
-        }
-
         // Wind component reference table — a placeable map marker with the same
         // click-to-place/drag/rotate interaction as a text box (see
         // startAddingTextBox()/createTextBoxMarker()), just with fixed table
@@ -4810,8 +4095,6 @@ var cvfrRoutesData = [
                 'airspaceToggleBtn': appState.airspaceVisible ? t.hideAirspace : t.airspaceToggle,
                 'frequenciesToggleBtn': appState.frequenciesVisible ? t.hideFrequencies : t.showFrequencies,
                 'vorToggleBtn': appState.vorPointsVisible ? t.hideVOR : t.showVOR,
-                'notamToggleBtn': appState.notamsVisible ? t.hideNOTAMs : t.showNOTAMs,
-                'notamRefreshBtn': t.notamsRefresh,
                 'vorInfoToggleBtn': appState.showVORInfo ? t.hideVORInfo : t.showVORInfo,
                 'airstripsToggleBtn': appState.airstripsVisible ? t.hideAirstrips : t.showAirstrips,
                 'cvfrPointsToggleBtn': appState.cvfrPointsVisible ? t.hideCVFRPoints : t.showCVFRPoints,
@@ -4925,56 +4208,6 @@ var cvfrRoutesData = [
                 shortcuts[3].innerHTML = '<span><strong>P</strong></span><span>' + t.pKey + '</span>';
             }
             
-            // Update NOTAM section heading/disclaimer/status (not an h3, so it's
-            // untouched by the header-matching block above; update explicitly)
-            var notamHeading = document.getElementById('notamSectionHeading');
-            if (notamHeading) notamHeading.textContent = t.notamsSectionTitle;
-            var notamDisclaimer = document.getElementById('notamDisclaimer');
-            if (notamDisclaimer) notamDisclaimer.textContent = t.notamsDisclaimer;
-            var notamDateLabel = document.getElementById('notamFlightDateLabel');
-            if (notamDateLabel) notamDateLabel.textContent = t.notamFlightDateLabel;
-            var notamOpacityLabel = document.getElementById('notamOpacityLabel');
-            if (notamOpacityLabel) {
-                var opacityVal = document.getElementById('notamOpacityValue').textContent;
-                notamOpacityLabel.innerHTML = t.notamOpacityLabel + ' <strong><span id="notamOpacityValue">' + opacityVal + '</span>%</strong>';
-            }
-            var legendMap = {
-                notamLegendClosure: t.notamLegendClosure,
-                notamLegendHazard: t.notamLegendHazard,
-                notamLegendOther: t.notamLegendOther,
-                notamLegendStyle: t.notamLegendStyle,
-                notamTakeoffLabel: t.notamTakeoffLabel,
-                notamLandingLabel: t.notamLandingLabel,
-                notamTakeoffNone: t.notamLocationNone,
-                notamLandingNone: t.notamLocationNone,
-                notamCorridorLabel: t.notamCorridorLabel,
-                notamShowAllLabel: t.notamShowAllLabel,
-                notamFlightRulesLabel: t.notamFlightRulesLabel,
-                notamFlightRulesVFR: t.notamFlightRulesVFR,
-                notamFlightRulesIFR: t.notamFlightRulesIFR,
-                notamFlightRulesAll: t.notamFlightRulesAll,
-                notamConfigHeading: t.notamConfigHeading,
-                notamPurposeLabel: t.notamPurposeLabel,
-                notamPurposeB: t.notamPurposeB,
-                notamPurposeAll: t.notamPurposeAll
-            };
-            for (var legendId in legendMap) {
-                var legendEl = document.getElementById(legendId);
-                if (legendEl) legendEl.textContent = legendMap[legendId];
-            }
-            var titleTexts = {
-                notamFlightRulesVFR: t.notamFlightRulesVFRTitle,
-                notamFlightRulesIFR: t.notamFlightRulesIFRTitle,
-                notamFlightRulesAll: t.notamFlightRulesAllTitle,
-                notamPurposeB: t.notamPurposeBTitle,
-                notamPurposeAll: t.notamPurposeAllTitle
-            };
-            for (var titleId in titleTexts) {
-                var titleEl = document.getElementById(titleId);
-                if (titleEl) titleEl.title = titleTexts[titleId];
-            }
-            updateNotamPanel();
-
             // Force update stats to get translated labels
             updateStats();
         }
@@ -6834,21 +6067,6 @@ var cvfrRoutesData = [
             drawAzimuthGuides();
             drawTocMarkers();
 
-            // NOTAM route-proximity (distance/intersects/altitude-overlap)
-            // depends on the current route, so it needs to be recomputed
-            // whenever the route changes - not just when NOTAM data is
-            // freshly fetched. NOTAM data is now fetched proactively on page
-            // load (often before any waypoints exist), so without this hook
-            // the sidebar sort/badges would silently reflect a stale
-            // (usually empty) route forever, since toggling NOTAM visibility
-            // on/off doesn't re-fetch or re-render once data is already
-            // loaded. Debounced (see scheduleNotamPanelRefresh) since
-            // updateRoute() itself fires continuously during a waypoint drag
-            // (and in a tight loop while a saved plan's waypoints load) -
-            // recomputing distance-to-route for ~90 NOTAMs on every single
-            // one of those calls would add visible jank on top of everything
-            // else this function already does.
-            if (typeof scheduleNotamPanelRefresh === 'function') scheduleNotamPanelRefresh();
         }
 
         function calculateDistance(lat1, lng1, lat2, lng2) {
@@ -9161,15 +8379,7 @@ var cvfrRoutesData = [
             miniWpLabelOpacity:   0.70,
             driftColor:           '#cc6600',
             driftWidth:           2,
-            arrivalLabelFontSize: 16,
-            notamOpacity:         0.05,
-            notamFlightDate:      '',
-            notamShowAll:         false,
-            notamCorridorWidth:   5,
-            notamTakeoffSelect:   '',
-            notamLandingSelect:   '',
-            notamFlightRules:     'VFR',
-            notamPurposeFilter:   'B'
+            arrivalLabelFontSize: 16
         };
 
         function collectSettings() {
@@ -9193,22 +8403,7 @@ var cvfrRoutesData = [
                 driftColor:           appState.driftColor,
                 driftWidth:           appState.driftWidth,
                 arrivalLabelFontSize: appState.arrivalLabelFontSize,
-                miniWaypoints: appState.miniWaypoints,
-                notamOpacity: appState.notamOpacity,
-                notamFlightDate: document.getElementById('notamFlightDateInput')
-                    ? document.getElementById('notamFlightDateInput').value : '',
-                notamShowAll: document.getElementById('notamShowAll')
-                    ? document.getElementById('notamShowAll').checked : false,
-                notamCorridorWidth: document.getElementById('notamCorridorWidth')
-                    ? document.getElementById('notamCorridorWidth').value : '5',
-                notamTakeoffSelect: document.getElementById('notamTakeoffSelect')
-                    ? document.getElementById('notamTakeoffSelect').value : '',
-                notamLandingSelect: document.getElementById('notamLandingSelect')
-                    ? document.getElementById('notamLandingSelect').value : '',
-                notamFlightRules: document.getElementById('notamFlightRules')
-                    ? document.getElementById('notamFlightRules').value : 'VFR',
-                notamPurposeFilter: document.getElementById('notamPurposeFilter')
-                    ? document.getElementById('notamPurposeFilter').value : 'B'
+                miniWaypoints: appState.miniWaypoints
             };
         }
 
@@ -9233,7 +8428,6 @@ var cvfrRoutesData = [
             appState.driftColor           = s.driftColor           !== undefined ? s.driftColor           : DEFAULT_SETTINGS.driftColor;
             appState.driftWidth           = s.driftWidth           !== undefined ? s.driftWidth           : DEFAULT_SETTINGS.driftWidth;
             appState.arrivalLabelFontSize = s.arrivalLabelFontSize !== undefined ? s.arrivalLabelFontSize : DEFAULT_SETTINGS.arrivalLabelFontSize;
-            appState.notamOpacity         = s.notamOpacity         !== undefined ? s.notamOpacity         : DEFAULT_SETTINGS.notamOpacity;
 
             // Sync all UI controls
             document.getElementById('cruiseSpeed').value             = appState.cruiseSpeed;
@@ -9271,22 +8465,10 @@ var cvfrRoutesData = [
             document.getElementById('driftColor').value              = appState.driftColor;
             document.getElementById('driftWidth').value              = appState.driftWidth;
             document.getElementById('driftWidthValue').textContent   = appState.driftWidth;
-            document.getElementById('notamOpacity').value             = Math.round(appState.notamOpacity * 100);
-            document.getElementById('notamOpacityValue').textContent  = Math.round(appState.notamOpacity * 100);
-            if (s.notamFlightDate !== undefined) {
-                document.getElementById('notamFlightDateInput').value = s.notamFlightDate;
-            }
-            document.getElementById('notamShowAll').checked = !!s.notamShowAll;
-            document.getElementById('notamCorridorWidth').value = s.notamCorridorWidth !== undefined ? s.notamCorridorWidth : 5;
-            if (s.notamTakeoffSelect !== undefined) document.getElementById('notamTakeoffSelect').value = s.notamTakeoffSelect;
-            if (s.notamLandingSelect !== undefined) document.getElementById('notamLandingSelect').value = s.notamLandingSelect;
-            document.getElementById('notamFlightRules').value = s.notamFlightRules !== undefined ? s.notamFlightRules : 'VFR';
-            document.getElementById('notamPurposeFilter').value = s.notamPurposeFilter !== undefined ? s.notamPurposeFilter : 'B';
 
             updateAllCircles();
             updateRoute();
             updateStats();
-            renderNotams();
         }
 
         function showSettingsStatus(msg, isError) {
@@ -9384,11 +8566,7 @@ var cvfrRoutesData = [
                 driftColor: appState.driftColor,
                 driftWidth: appState.driftWidth,
                 arrivalLabelFontSize: appState.arrivalLabelFontSize,
-                miniWaypoints: appState.miniWaypoints,
-                notamTakeoffSelect: document.getElementById('notamTakeoffSelect')
-                    ? document.getElementById('notamTakeoffSelect').value : '',
-                notamLandingSelect: document.getElementById('notamLandingSelect')
-                    ? document.getElementById('notamLandingSelect').value : ''
+                miniWaypoints: appState.miniWaypoints
             };
         }
 
@@ -9575,12 +8753,6 @@ var cvfrRoutesData = [
             appState.waypointLabelStylesReverse = plan.waypointLabelStylesReverse || {};
             appState.waypointLabelStyles  = plan.waypointLabelStyles  || {};
             appState.miniWaypoints = plan.miniWaypoints || {};
-            if (document.getElementById('notamTakeoffSelect')) {
-                document.getElementById('notamTakeoffSelect').value = plan.notamTakeoffSelect || '';
-            }
-            if (document.getElementById('notamLandingSelect')) {
-                document.getElementById('notamLandingSelect').value = plan.notamLandingSelect || '';
-            }
             // Convert old absolute 'rotation' to heading-relative 'rotationDelta' if needed
             // (old plans stored absolute rotation; new plans store rotationDelta)
             Object.keys(appState.waypointLabelStyles).forEach(function(k) {

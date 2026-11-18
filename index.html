@@ -5681,8 +5681,14 @@ var cvfrRoutesData = [
                                     };
                                     appState.waypoints.splice(legIdx + 1, 0, newWp);
 
-                                    // Renumber all waypoints sequentially
-                                    appState.waypoints.forEach(function(w, i) { w.num = i + 1; w.name = w.name === 'WP?' ? 'WP' + (i+1) : w.name; });
+                                    // Renumber all waypoints sequentially. Waypoints still carrying
+                                    // their default name ("WP" + their old num) follow the new
+                                    // numbering, so a split doesn't leave two "WP2"s; custom names
+                                    // are kept as-is.
+                                    appState.waypoints.forEach(function(w, i) {
+                                        if (w.name === 'WP?' || w.name === 'WP' + w.num) w.name = 'WP' + (i + 1);
+                                        w.num = i + 1;
+                                    });
 
                                     // Build old->new num mapping (for waypoints that existed before)
                                     var numRemap = {};

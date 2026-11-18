@@ -6315,6 +6315,7 @@ var cvfrRoutesData = [
                 var i = marker.identData.legIdx;
                 return { marker: marker, a: appState.waypoints[i], b: appState.waypoints[i + 1] };
             });
+            var before = appState.waypoints.slice(); // pre-reorder order, for leg-state remap below
             // Reorder waypoints array
             var wp = appState.waypoints.splice(fromIdx, 1)[0];
             appState.waypoints.splice(toIdx, 0, wp);
@@ -6332,8 +6333,45 @@ var cvfrRoutesData = [
             // Reorder circles array to match
             var circle = appState.circles.splice(fromIdx, 1)[0];
             appState.circles.splice(toIdx, 0, circle);
-            // Renumber
-            appState.waypoints.forEach(function(w, i) { w.num = i + 1; });
+
+            // Per-waypoint and per-leg state must follow the waypoints, the same
+            // way deleteWaypoint()/Split Leg remap it. A leg is identified by its
+            // two endpoint waypoints (old leg i = before[i] -> before[i+1]) and
+            // survives only if they're still consecutive in the same order, as
+            // with ident points above. State on a leg that no longer exists
+            // (altitude, climb, dragged/hidden leg box) is dropped.
+            ['legAltitudes', 'legClimbs'].forEach(function(field) {
+                var src = appState[field] || {}, out = {};
+                Object.keys(src).forEach(function(k) {
+                    var i = parseInt(k, 10);
+                    var j = appState.waypoints.indexOf(before[i]);
+                    if (j > -1 && before[i + 1] && appState.waypoints[j + 1] === before[i + 1]) out[j] = src[k];
+                });
+                appState[field] = out;
+            });
+
+            // Renumber, remembering old num -> new num for num-keyed state
+            var numRemap = {};
+            appState.waypoints.forEach(function(w, i) { numRemap[w.num] = i + 1; w.num = i + 1; });
+            ['waypointLabelOffsets', 'waypointLabelStyles', 'miniWaypoints'].forEach(function(field) {
+                var src = appState[field] || {}, out = {};
+                Object.keys(src).forEach(function(num) {
+                    var nn = numRemap[parseInt(num, 10)];
+                    if (nn) out[nn] = src[num];
+                });
+                appState[field] = out;
+            });
+            // Leg state keyed "numA_numB": keep only legs that still exist.
+            ['legLabelDraggedPositions', 'legBoxHidden'].forEach(function(field) {
+                var src = appState[field] || {}, out = {};
+                Object.keys(src).forEach(function(key) {
+                    var parts = key.split('_');
+                    if (parts.length !== 2) return;
+                    var a = numRemap[parseInt(parts[0], 10)], b = numRemap[parseInt(parts[1], 10)];
+                    if (a && b && b === a + 1) out[a + '_' + b] = src[key];
+                });
+                appState[field] = out;
+            });
             updateRoute();
             updateWaypointsList();
             updateStats();

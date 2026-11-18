@@ -187,6 +187,26 @@ touching it. Brief map:
     `fuelUnit` predates the option ("the liters days") and loads in litres. Its
     `fuelFlow` was L/hr all along, so its value is unchanged.
 
+## Autosave (working draft)
+
+The current work is autosaved to localStorage under `flightNavAutosaveDraft`, a
+temporary draft separate from the user's saved plans. Its contents are
+`{savedAt, planName, nameInput, plan: planToJson()}`.
+- It's written debounced after every `updateRoute()` (`scheduleAutosave()`),
+  every 15 s if anything changed, and on `pagehide`/`beforeunload`. The key is
+  removed when the workspace is empty.
+- `restoreAutosave()` runs in the load handler. It re-applies the draft through
+  `applyPlan()` and shows a notice with Discard.
+- `_autosaveReady` stays false until the restore has run, so the empty start-up
+  state never overwrites a draft. Keep that guard if you touch the init order.
+- If a working folder is granted, the start-up `settings.json` load runs
+  afterwards and would override the draft's flight values, so
+  `reapplyAutosaveDraft()` re-applies the draft once that load finishes.
+- Anything a plan saves is autosaved too. Toggle buttons (labels, leg fuel,
+  FOB…) aren't part of a plan and still reset on reload.
+- "Save Plan" is unchanged: it writes to the folder, or to the browser's
+  `flightPlans` list. The draft is only a safety net.
+
 ## Versioning & What's New
 
 `APP_NAME` / `APP_VERSION` (~line 612) drive the title, header, watermark, GPX

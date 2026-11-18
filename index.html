@@ -1212,6 +1212,7 @@ var cvfrRoutesData = [
             initMap();
             setupEventListeners();
             loadSavedPlans();
+            restoreAutosave();
             // Restore previously selected folder
             idbGet('flightPlannerFolder').then(function(stored) {
                 if (!stored) {
@@ -1226,7 +1227,9 @@ var cvfrRoutesData = [
                         _folderHandle = stored;
                         updateFolderDisplay();
                         loadPlansFromFolder();
-                        loadSettingsFile();
+                        // settings.json holds the user's defaults; a restored draft
+                        // (unsaved work) must win over it, so re-apply it afterwards.
+                        loadSettingsFile().then(reapplyAutosaveDraft);
                     } else {
                         // Need user gesture — show banner
                         showFolderRestoreBanner(stored);
@@ -2233,6 +2236,7 @@ var cvfrRoutesData = [
                         'Climb legs: set from/to altitude, climb speed and rate in a leg\'s popup to get a top-of-climb (TOC) marker and a climb-adjusted leg time (defaults 70 kt / 700 fpm)',
                         'New "Hide/Show Accum. Time" button (Layers tab) for the total elapsed time shown in brackets on each waypoint label',
                         'New "Show Leg Fuel" button (Layers tab, off by default): adds each leg’s fuel to its leg box, so it appears on screen and on saved/printed maps',
+                        'Your work is autosaved in this browser: refreshing or closing the page no longer loses the route. It is restored on the next visit, with a Discard option. Save Plan still saves to your plans as before',
                         'Start Fuel (Data tab) and a "Show Remaining Fuel" button (Layers tab, off by default): each waypoint label shows FOB, the fuel on board on arrival, in red below a 30-minute reserve. Start fuel is saved with the plan'
                     ]
                 },
@@ -5876,6 +5880,7 @@ var cvfrRoutesData = [
             refreshIdentPointLegGeometry();
             drawAzimuthGuides();
             drawTocMarkers();
+            scheduleAutosave();
 
         }
 
@@ -8399,6 +8404,114 @@ var cvfrRoutesData = [
             applySettings(DEFAULT_SETTINGS);
             showSettingsStatus('✓ Reverted to defaults.', false);
         };
+
+        // ── Autosave (working draft) ───────────────────────────────────────
+        // The current work is kept as a temporary draft in localStorage
+        // (AUTOSAVE_KEY), separate from the user's saved plans, so a refresh,
+        // crash or closed tab doesn't lose it. The draft is a full planToJson()
+        // snapshot plus the plan name being edited. It's written:
+        //   - debounced after every updateRoute() (i.e. nearly every edit),
+        //   - every 15 s if anything changed (text boxes, wind tables etc.
+        //     don't always go through updateRoute),
+        //   - on pagehide/beforeunload (refresh/close).
+        // On load, restoreAutosave() re-applies it through applyPlan() and
+        // offers Discard. "Save Plan" still writes to the user's data (folder,
+        // or the browser's plan list) as before; the draft is only a safety net.
+        var AUTOSAVE_KEY = 'flightNavAutosaveDraft';
+        var _autosaveReady = false;   // false until restore has run: never overwrite a draft with the empty start-up state
+        var _autosaveTimer = null;
+        var _autosaveLast = null;
+
+        function writeAutosave() {
+            if (!_autosaveReady) return;
+            try {
+                var plan = planToJson(appState.currentPlanName || '');
+                var nameEl = document.getElementById('plan-name');
+                var draft = JSON.stringify({
+                    savedAt: new Date().toISOString(),
+                    planName: appState.currentPlanName || null,
+                    nameInput: nameEl ? nameEl.value : '',
+                    plan: plan
+                });
+                // Compare without the timestamp so an unchanged workspace isn't rewritten
+                var sig = draft.replace(/"savedAt":"[^"]*",/, '');
+                if (sig === _autosaveLast) return;
+                _autosaveLast = sig;
+                if (!appState.waypoints.length && !appState.textBoxes.length && !appState.windTables.length) {
+                    localStorage.removeItem(AUTOSAVE_KEY); // nothing to keep
+                } else {
+                    localStorage.setItem(AUTOSAVE_KEY, draft);
+                }
+            } catch (e) { /* storage full/blocked: autosave is best-effort */ }
+        }
+
+        function scheduleAutosave() {
+            if (!_autosaveReady) return;
+            if (_autosaveTimer) clearTimeout(_autosaveTimer);
+            _autosaveTimer = setTimeout(function() { _autosaveTimer = null; writeAutosave(); }, 800);
+        }
+
+        var _restoredDraft = null;
+        function applyRestoredDraft() {
+            var draft = _restoredDraft;
+            if (!draft) return;
+            _autosaveReady = false;
+            applyPlan(draft.plan);
+            // applyPlan -> clearRoute resets the plan name; set it afterwards
+            setTimeout(function() {
+                appState.currentPlanName = draft.planName || null;
+                var nameEl = document.getElementById('plan-name');
+                if (nameEl) nameEl.value = draft.nameInput || '';
+                _autosaveReady = true;
+            }, 150);
+        }
+        // Called once after the start-up settings.json load (see the load handler).
+        function reapplyAutosaveDraft() {
+            if (_restoredDraft) { applyRestoredDraft(); _restoredDraft = null; }
+        }
+
+        function restoreAutosave() {
+            var draft = null;
+            try { draft = JSON.parse(localStorage.getItem(AUTOSAVE_KEY) || 'null'); } catch (e) {}
+            if (draft && draft.plan && draft.plan.waypoints && draft.plan.waypoints.length) {
+                _restoredDraft = draft;
+                applyRestoredDraft();
+                setTimeout(function() { showAutosaveNotice(draft.savedAt); }, 150);
+            } else {
+                _autosaveReady = true;
+            }
+            window.addEventListener('pagehide', writeAutosave);
+            window.addEventListener('beforeunload', writeAutosave);
+            setInterval(writeAutosave, 15000);
+        }
+
+        function showAutosaveNotice(savedAt) {
+            var when = '';
+            try { when = new Date(savedAt).toLocaleString([], { hour: '2-digit', minute: '2-digit', day: 'numeric', month: 'short' }); } catch (e) {}
+            var box = document.createElement('div');
+            box.id = 'autosaveNotice';
+            box.style.cssText = 'position:fixed;left:50%;bottom:24px;transform:translateX(-50%);z-index:9000;background:#1f2937;color:#fff;' +
+                'padding:10px 14px;border-radius:8px;box-shadow:0 4px 16px rgba(0,0,0,0.3);font-size:13px;display:flex;gap:10px;align-items:center;max-width:92vw;';
+            box.innerHTML = '<span>Restored your unsaved work' + (when ? ' from ' + when : '') + '.</span>' +
+                '<button id="autosaveDiscardBtn" style="padding:4px 10px;font-size:12px;background:transparent;color:#fca5a5;border:1px solid #fca5a5;border-radius:4px;cursor:pointer;">Discard</button>' +
+                '<button id="autosaveCloseBtn" title="Keep" style="padding:4px 8px;font-size:12px;background:transparent;color:#fff;border:1px solid #6b7280;border-radius:4px;cursor:pointer;">OK</button>';
+            document.body.appendChild(box);
+            var close = function() { if (box.parentNode) box.parentNode.removeChild(box); };
+            document.getElementById('autosaveCloseBtn').onclick = close;
+            document.getElementById('autosaveDiscardBtn').onclick = function() {
+                if (!confirm('Discard the restored work? This clears the current route (saved plans are not affected).')) return;
+                clearRoute();
+                updateRoute();
+                appState.currentPlanName = null;
+                var nameEl = document.getElementById('plan-name');
+                if (nameEl) nameEl.value = '';
+                try { localStorage.removeItem(AUTOSAVE_KEY); } catch (e) {}
+                _autosaveLast = null;
+                _restoredDraft = null;
+                close();
+            };
+            setTimeout(close, 15000);
+        }
 
         function planToJson(planName) {
             var textBoxesData = appState.textBoxes.map(function(marker) {

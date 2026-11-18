@@ -77,6 +77,7 @@
                         <button class="btn-primary"  id="driftLinesToggleBtn" onclick="toggleDriftLines()" style="font-size: 11px; padding: 6px 8px;">Hide Drift Lines</button>
                         <button class="btn-primary" id="legDistanceToggleBtn" onclick="toggleLegDistance()" style="font-size: 11px; padding: 6px 8px;">Hide Distance (NM)</button>
                         <button class="btn-secondary" id="legFuelToggleBtn" onclick="toggleLegFuel()" style="font-size: 11px; padding: 6px 8px;">Show Leg Fuel</button>
+                        <button class="btn-secondary" id="remainingFuelToggleBtn" onclick="toggleRemainingFuel()" style="font-size: 11px; padding: 6px 8px;">Show Remaining Fuel</button>
                         <button class="btn-primary"   id="accumTimeToggleBtn" onclick="toggleAccumTime()" style="font-size: 11px; padding: 6px 8px;">Hide Accum. Time</button>
                         <button class="btn-primary"   id="vorInfoToggleBtn" onclick="toggleVORInfo()" style="font-size: 11px; padding: 6px 8px;">Hide VOR Info</button>
                         <button class="btn-secondary" id="airstripsToggleBtn" onclick="toggleAirstrips()" style="font-size: 11px; padding: 6px 8px;">Show Airstrips</button>
@@ -121,6 +122,13 @@
                             <option value="L">Liters</option>
                         </select>
                     </div>
+                </div>
+                <div class="field">
+                    <label for="startFuel" class="field-label">
+                        Start Fuel (gal)
+                    </label>
+                    <input type="number" id="startFuel" min="0" max="5000" step="0.1" placeholder="not set"
+                           class="field-input">
                 </div>
                 <div class="field">
                     <label for="magVar" class="field-label">
@@ -460,6 +468,8 @@
             cruiseSpeed: 90,
             fuelFlow: 17, // always stored in L/hr; shown in appState.fuelUnit
             fuelUnit: 'gal', // 'gal' (US gallons) or 'L' - display/input unit only
+            startFuelL: 0, // fuel on board at departure, litres (0 = not set); saved with the plan
+            showRemainingFuel: false, // "FOB" line on each waypoint label (default off)
             magVar: -5,
             lineWidth: 4,
             labelFontSize: 15,
@@ -2222,7 +2232,8 @@ var cvfrRoutesData = [
                         'Fuel in US gallons or litres: pick the unit next to Fuel Flow (Data tab). Gallons is the default; plans remember their unit, and older plans open in litres',
                         'Climb legs: set from/to altitude, climb speed and rate in a leg\'s popup to get a top-of-climb (TOC) marker and a climb-adjusted leg time (defaults 70 kt / 700 fpm)',
                         'New "Hide/Show Accum. Time" button (Layers tab) for the total elapsed time shown in brackets on each waypoint label',
-                        'New "Show Leg Fuel" button (Layers tab, off by default): adds each leg’s fuel to its leg box, so it appears on screen and on saved/printed maps'
+                        'New "Show Leg Fuel" button (Layers tab, off by default): adds each leg’s fuel to its leg box, so it appears on screen and on saved/printed maps',
+                        'Start Fuel (Data tab) and a "Show Remaining Fuel" button (Layers tab, off by default): each waypoint label shows FOB, the fuel on board on arrival, in red below a 30-minute reserve. Start fuel is saved with the plan'
                     ]
                 },
                 {
@@ -3496,11 +3507,21 @@ var cvfrRoutesData = [
                 if (isNaN(v) || v <= 0) return;
                 appState.fuelFlow = fuelToLitres(v); // stored in L/hr
                 updateStats();
+                updateRoute(); // leg-box fuel and remaining-fuel labels depend on fuel flow
             });
             document.getElementById('fuelUnit').addEventListener('change', function(e) {
                 appState.fuelUnit = e.target.value === 'L' ? 'L' : 'gal';
                 syncFuelFlowInput();
                 updateStats();
+                updateRoute(); // leg-box fuel and remaining-fuel labels show the unit
+            });
+            document.getElementById('startFuel').addEventListener('input', function(e) {
+                var raw = e.target.value.trim();
+                var v = parseFloat(raw);
+                if (raw === '') appState.startFuelL = 0;          // cleared = not set
+                else if (isFinite(v) && v >= 0) appState.startFuelL = fuelToLitres(v);
+                else return;
+                updateRoute();
             });
             syncFuelFlowInput();
 
@@ -4358,6 +4379,16 @@ var cvfrRoutesData = [
                         '</div>';
                 }
             }
+            var fobHtml = '';
+            if (appState.showRemainingFuel && appState.startFuelL > 0) {
+                var wpIdx = appState.waypoints.indexOf(wp);
+                if (wpIdx > -1) {
+                    var fobL = fuelOnBoardAtL(wpIdx);
+                    var lowFuel = fobL < 0.5 * appState.fuelFlow; // under 30 min at fuel flow
+                    fobHtml = '<div style="font-size:' + timeFontSize + 'px;font-weight:700;' + (lowFuel ? 'color:#d32f2f;' : 'opacity:0.85;') + '"' +
+                        (lowFuel ? ' title="Below 30 min reserve"' : '') + '>FOB ' + fuelFromLitres(fobL).toFixed(1) + ' ' + fuelUnitShort() + '</div>';
+                }
+            }
             var innerHtml =
                 '<div style="display:inline-block;background:' + bg + ';' + shadow +
                 'border:' + border + 'px solid ' + style.textColor + ';border-radius:3px;padding:' + pad + ';' +
@@ -4368,6 +4399,7 @@ var cvfrRoutesData = [
                 (showTime && timeStr && appState.legTimeVisible !== false ? '<div style="font-size:' + timeFontSize + 'px;font-weight:600;opacity:0.8;">' + timeStr +
                     (accumTimeStr && appState.accumTimeVisible !== false ? ' <span style="opacity:0.65;font-weight:500;">(' + accumTimeStr + ')</span>' : '') +
                     '</div>' : '') +
+                fobHtml +
                 vorInfoHtml +
                 '</div>';
 
@@ -5952,6 +5984,31 @@ var cvfrRoutesData = [
             var label = document.querySelector('label[for="fuelFlow"]');
             var t = translations.en;
             if (label) label.textContent = t.fuelFlow + ' (' + fuelRateUnit() + ')';
+            var sf = document.getElementById('startFuel');
+            if (sf) {
+                sf.step = appState.fuelUnit === 'L' ? '1' : '0.1';
+                sf.value = appState.startFuelL > 0 ? Math.round(fuelFromLitres(appState.startFuelL) * 10) / 10 : '';
+            }
+            var sfLabel = document.querySelector('label[for="startFuel"]');
+            if (sfLabel) sfLabel.textContent = 'Start Fuel (' + fuelUnitShort() + ')';
+        }
+
+        // Fuel on board on arrival at waypoint idx (litres): start fuel minus
+        // everything burned on legs 0..idx-1 (legSeconds, so climbs count).
+        function fuelOnBoardAtL(idx) {
+            var secs = 0;
+            for (var i = 0; i < idx; i++) secs += legSeconds(i);
+            return appState.startFuelL - secs / 3600 * appState.fuelFlow;
+        }
+
+        function toggleRemainingFuel() {
+            appState.showRemainingFuel = !appState.showRemainingFuel;
+            var btn = document.getElementById('remainingFuelToggleBtn');
+            if (btn) {
+                btn.textContent = appState.showRemainingFuel ? 'Hide Remaining Fuel' : 'Show Remaining Fuel';
+                btn.className = appState.showRemainingFuel ? 'btn-primary' : 'btn-secondary';
+            }
+            updateRoute();
         }
 
         function updateStats() {
@@ -8378,6 +8435,7 @@ var cvfrRoutesData = [
                 arrivalLabelPositions: appState.arrivalLabelPositions,
                 cruiseSpeed: appState.cruiseSpeed,
                 fuelFlow: appState.fuelFlow, // always L/hr
+                startFuelL: appState.startFuelL, // litres, 0 = not set
                 fuelUnit: appState.fuelUnit,
                 magVar: appState.magVar,
                 circleRadius: appState.circleRadius,
@@ -8560,6 +8618,7 @@ var cvfrRoutesData = [
             appState.fuelFlow       = plan.fuelFlow       || 17;
             // No fuelUnit = plan saved before the gallons option existed = litres.
             appState.fuelUnit       = (plan.fuelUnit === 'gal' || plan.fuelUnit === 'L') ? plan.fuelUnit : 'L';
+            appState.startFuelL     = (isFinite(plan.startFuelL) && plan.startFuelL >= 0) ? plan.startFuelL : 0;
             appState.magVar         = plan.magVar !== undefined ? plan.magVar : -5;
             appState.circleRadius   = plan.circleRadius   || 0.3;
             appState.legAltitudes   = plan.legAltitudes   || {};

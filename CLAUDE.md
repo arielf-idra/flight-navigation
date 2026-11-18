@@ -176,6 +176,13 @@ touching it. Brief map:
     (1 US gal = 3.785411784 L). Format with `fuelUnitShort()`, `fuelUnitLong()`
     and `formatFuelFlow()`. `syncFuelFlowInput()` pushes state into the Data-tab
     input, selector and label. Never write `fuelFlow` into the input directly.
+  - **Start fuel / remaining fuel**: `appState.startFuelL` (litres, 0 = not set)
+    comes from the Data-tab "Start Fuel" input, synced by `syncFuelFlowInput()`.
+    It's saved with the plan only; plans without it load as not set.
+    `fuelOnBoardAtL(idx)` = start fuel − Σ legSeconds × fuel flow. "Show Remaining
+    Fuel" (`showRemainingFuel`, default off, not persisted) adds "FOB x" to each
+    waypoint label, in red below 30 min × fuel flow. Fuel-flow and unit changes
+    call `updateRoute()` so the map figures (leg-box fuel, FOB) refresh too.
   - `fuelUnit` is saved in settings and **with each flight plan**. A plan with no
     `fuelUnit` predates the option ("the liters days") and loads in litres. Its
     `fuelFlow` was L/hr all along, so its value is unchanged.

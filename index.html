@@ -3059,8 +3059,10 @@ var cvfrRoutesData = [
             return null;
         }
 
-        function formatIdentTime(alongTrackDistNm) {
-            var secs = Math.max(0, Math.round(alongTrackDistNm / appState.cruiseSpeed * 3600));
+        function formatIdentTime(alongTrackDistNm, legIdx) {
+            var raw = (typeof legIdx === 'number') ? secondsAlongLeg(legIdx, alongTrackDistNm)
+                                                   : alongTrackDistNm / appState.cruiseSpeed * 3600;
+            var secs = Math.max(0, Math.round(raw));
             var m = Math.floor(secs / 60), s = secs % 60;
             return (m < 10 ? '0' : '') + m + ':' + (s < 10 ? '0' : '') + s;
         }
@@ -3072,7 +3074,7 @@ var cvfrRoutesData = [
         function computeIdentDisplay(d) {
             var closestPt = getClosestPointOnLine(d._realLat, d._realLng, d.legStartLat, d.legStartLng, d.legEndLat, d.legEndLng);
             var alongTrackDistNm = calculateDistance(d.legStartLat, d.legStartLng, closestPt.lat, closestPt.lng);
-            var timeStr = formatIdentTime(alongTrackDistNm);
+            var timeStr = formatIdentTime(alongTrackDistNm, d.legIdx);
 
             var bearingToPt = calculateBearing(d.legStartLat, d.legStartLng, d._realLat, d._realLng);
             var diff = ((bearingToPt - d.legBearing + 540) % 360) - 180;
@@ -3370,6 +3372,11 @@ var cvfrRoutesData = [
                 if (min % tickInterval !== 0) continue;
 
                 var fraction = min / opts.totalMinutesExact;
+                if (typeof opts.legIdx === 'number' && legClimbPortion(opts.legIdx)) {
+                    var _a = appState.waypoints[opts.legIdx], _b = appState.waypoints[opts.legIdx + 1];
+                    var _len = calculateDistance(_a.lat, _a.lng, _b.lat, _b.lng);
+                    if (_len > 0) fraction = distanceAlongLegAt(opts.legIdx, min * 60) / _len;
+                }
                 var lat = opts.d1.lat + (opts.d2.lat - opts.d1.lat) * fraction;
                 var lng = opts.d1.lng + (opts.d2.lng - opts.d1.lng) * fraction;
 
@@ -4466,15 +4473,34 @@ var cvfrRoutesData = [
         function legSeconds(i) {
             var a = appState.waypoints[i], b = appState.waypoints[i + 1];
             if (!a || !b) return 0;
-            var dist = calculateDistance(a.lat, a.lng, b.lat, b.lng);
+            return secondsAlongLeg(i, calculateDistance(a.lat, a.lng, b.lat, b.lng));
+        }
+
+        // Climb portion of leg i: { climbDist (NM, clamped to the leg), gs }, or
+        // null when the leg has no usable climb.
+        function legClimbPortion(i) {
+            var a = appState.waypoints[i], b = appState.waypoints[i + 1];
             var c = getLegClimb(i);
-            if (c && c.gs > 0 && c.dNm > 0) {
-                var climbDist = Math.min(c.dNm, dist);
-                var climbSecs = climbDist / c.gs * 3600;
-                var rest = Math.max(0, dist - climbDist);
-                return climbSecs + rest / appState.cruiseSpeed * 3600;
-            }
-            return dist / appState.cruiseSpeed * 3600;
+            if (!a || !b || !c || !(c.gs > 0) || !(c.dNm > 0)) return null;
+            return { climbDist: Math.min(c.dNm, calculateDistance(a.lat, a.lng, b.lat, b.lng)), gs: c.gs };
+        }
+
+        // Seconds to fly the first dNm of leg i: climb ground speed up to
+        // top-of-climb, cruise after. legSeconds(i) is this for the whole leg.
+        function secondsAlongLeg(i, dNm) {
+            var cp = legClimbPortion(i);
+            if (!cp) return dNm / appState.cruiseSpeed * 3600;
+            if (dNm <= cp.climbDist) return dNm / cp.gs * 3600;
+            return cp.climbDist / cp.gs * 3600 + (dNm - cp.climbDist) / appState.cruiseSpeed * 3600;
+        }
+
+        // Inverse of secondsAlongLeg: NM flown along leg i after secs seconds.
+        function distanceAlongLegAt(i, secs) {
+            var cp = legClimbPortion(i);
+            if (!cp) return secs / 3600 * appState.cruiseSpeed;
+            var climbSecs = cp.climbDist / cp.gs * 3600;
+            if (secs <= climbSecs) return secs / 3600 * cp.gs;
+            return cp.climbDist + (secs - climbSecs) / 3600 * appState.cruiseSpeed;
         }
 
         function openWaypointPopup(idx, latlng) {
@@ -5031,7 +5057,7 @@ var cvfrRoutesData = [
                     d1: d1, d2: d2, heading: heading,
                     totalMinutesExact: totalMinutesExact, totalMinutesForMarkers: totalMinutesForMarkers,
                     tickInterval: tickInterval, accumMinOffset: accumMinOffset,
-                    radiusNm: radiusNm, wp1Real: wp1, wp2Real: wp2,
+                    radiusNm: radiusNm, wp1Real: wp1, wp2Real: wp2, legIdx: i,
                     opacity: 0.7, targetArray: appState.timeMarkers
                 });
             }
@@ -6076,7 +6102,7 @@ var cvfrRoutesData = [
                         d1: d1, d2: d2, heading: heading,
                         totalMinutesExact: totalMinutesExact, totalMinutesForMarkers: totalMinutesForMarkers,
                         tickInterval: tickInterval, accumMinOffset: accumMinOffset,
-                        radiusNm: radiusNm, wp1Real: wp1, wp2Real: wp2,
+                        radiusNm: radiusNm, wp1Real: wp1, wp2Real: wp2, legIdx: i,
                         opacity: 0.7, targetArray: appState.timeMarkers
                     });
 

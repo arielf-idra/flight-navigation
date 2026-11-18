@@ -3301,7 +3301,11 @@ var cvfrRoutesData = [
                         html: labelHtml,
                         iconSize: [50, 20],
                         iconAnchor: [25, 10]
-                    })
+                    }),
+                    // Below waypoint labels (zIndexOffset -100) so a minute number
+                    // never draws on top of a waypoint's name/time box.
+                    zIndexOffset: -200,
+                    interactive: false
                 }).addTo(appState.map);
                 opts.targetArray.push(labelMarker);
 

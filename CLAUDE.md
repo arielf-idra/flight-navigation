@@ -182,6 +182,12 @@ append the new version to `versionOrder`.
   ignored. A remembered active tab of `notams` falls back to Route
   (`switchDashboardTab()` falls back for any unknown tab).
 - **LSA/AZM reporting points**: see the Data tables section.
+- **Hebrew UI / language switch** removed in Nov 2026 at the user's request. The app
+  is English-only: the EN/עב button, `translations.he`, `toggleLanguage`,
+  `updateUILanguage` and `appState.language` are gone. UI strings live in
+  `translations.en` (read as `translations.en.x`) or directly in the static HTML.
+  Hebrew *map data* stays: `name_he` on CVFR points, Hebrew airstrip and
+  frequency names. Those are chart place names, not interface text.
 - **"Show Airspace" layer** (`initAirspaceZones`/`toggleAirspace`) removed in Nov 2026
   at the user's request. It was 7 hardcoded circles with made-up radii and no
   provenance, including Sde Dov CTR (closed 2019). If airspace is ever wanted again,

@@ -390,9 +390,6 @@
                     <button onclick="showWhatsNewIfNeeded(true)" style="padding: 6px 12px; background: var(--surface); color: var(--accent); border: 1px solid var(--accent); border-radius: 4px; cursor: pointer; font-weight: 500; font-size: 11px;">
                         🆕 What's New
                     </button>
-                    <button id="languageToggleBtn" onclick="toggleLanguage()" style="padding: 6px 12px; background: var(--surface); color: var(--text); border: 1px solid var(--accent); border-radius: 4px; cursor: pointer; font-weight: 500; font-size: 11px;">
-                        EN / עב
-                    </button>
                 </div>
                 <button onclick="openContactForm()" style="width:100%; padding: 7px; background: transparent; color: var(--accent); border: 1px solid var(--accent); border-radius: 4px; cursor: pointer; font-size: 11px; font-weight: 600; letter-spacing: 0.3px;">
                     ✉️ Contact Developer
@@ -477,7 +474,6 @@
             windTables: [],
             addingTextBox: false,
             identPoints: [],
-            language: 'en', // 'en' or 'he' - UI language (CVFR points always show Hebrew)
             frequencies: [],
             frequenciesVisible: false,
             vorPoints: [],
@@ -1199,66 +1195,6 @@ var cvfrRoutesData = [
                 infoTooltip: "Click \"Start Drawing\", then click on the map to add waypoints. After first waypoint, move cursor to preview next leg.",
                 showCoordinates: "Show Coords",
                 hideCoordinates: "Hide Coords"
-            },
-            he: {
-                title: "🛩️ כלי ניווט טיסה",
-                flightControls: "בקרות טיסה",
-                mapLayers: "שכבות מפה",
-                export: "ייצוא",
-                startDrawing: "התחל שרטוט",
-                stopDrawing: "עצור שרטוט",
-                addByCoords: "הוסף לפי קואורדינטות",
-                clearRoute: "נקה מסלול",
-                debugInfo: "מידע ניפוי",
-                simpleInfo: "מידע פשוט",
-                reverseRoute: "מסלול הפוך",
-                showReturn: "הצג חזרה",
-                showOutbound: "הצג יציאה",
-                hideReturn: "הסתר חזרה",
-                addTextBox: "הוסף תיבת טקסט",
-                showFrequencies: "הצג תדרים",
-                hideFrequencies: "הסתר תדרים",
-                showVOR: "הצג VOR",
-                hideVOR: "הסתר VOR",
-                showVORInfo: "הצג מידע VOR",
-                hideVORInfo: "הסתר מידע VOR",
-                showAirstrips: "הצג מנחתים",
-                hideAirstrips: "הסתר מנחתים",
-                showCVFRPoints: "הצג נקודות CVFR",
-                hideCVFRPoints: "הסתר נקודות CVFR",
-                showCVFRRoutes: "הצג נתיבי CVFR",
-                hideCVFRRoutes: "הסתר נתיבי CVFR",
-                displaySettings: "הגדרות תצוגה",
-                lineWidth: "עובי קו",
-                waypointCircleRadius: "רדיוס עיגול נקודת ציון",
-                timeLabelFontSize: "גודל גופן תווית זמן",
-                textBoxFontSize: "גודל גופן תיבת טקסט",
-                infoBoxOpacity: "שקיפות תיבת מידע",
-                cruiseSpeed: "מהירות שיוט (קשרים)",
-                fuelFlow: "זרימת דלק",
-                waypoints: "נקודות ציון",
-                show: "הצג",
-                hide: "הסתר",
-                stats: "סטטיסטיקה",
-                totalDistance: "מרחק כולל",
-                totalTime: "זמן כולל",
-                fuelRequired: "דלק נדרש",
-                numberOfLegs: "מספר רגליים",
-                actions: "פעולות",
-                exportGPX: "ייצא GPX",
-                printDetails: "הדפס פרטי מסלול",
-                saveMapImage: "שמור תמונת מפה",
-                savePlan: "שמור תוכנית טיסה",
-                planName: "הכנס שם תוכנית טיסה...",
-                saveBtn: "💾 שמור תוכנית",
-                keyboardShortcuts: "⌨️ קיצורי מקלדת",
-                escKey: "עצור שרטוט",
-                lKey: "הנפשת מטוס",
-                mKey: "הסתר/הצג תפריט",
-                pKey: "צילום מסך (אנכי)",
-                infoTooltip: "לחץ על \"התחל שרטוט\", ואז לחץ על המפה להוספת נקודות ציון. לאחר נקודת הציון הראשונה, הזז את הסמן לתצוגה מקדימה של הקטע הבא.",
-                showCoordinates: "הצג קו׳",
-                hideCoordinates: "הסתר קו׳"
             }
         };
         
@@ -1360,7 +1296,7 @@ var cvfrRoutesData = [
         function toggleCoordDisplayMode() {
             appState.coordDisplayMode = !appState.coordDisplayMode;
             var btn = document.getElementById('coordModeBtn');
-            var t = translations[appState.language];
+            var t = translations.en;
             
             if (appState.coordDisplayMode) {
                 enableCoordDisplay();
@@ -1579,7 +1515,7 @@ var cvfrRoutesData = [
                 });
                 var airstripsBtn = document.getElementById('airstripsToggleBtn');
                 if (airstripsBtn) {
-                    airstripsBtn.textContent = translations[appState.language].hideAirstrips || 'Hide Airstrips';
+                    airstripsBtn.textContent = translations.en.hideAirstrips || 'Hide Airstrips';
                     airstripsBtn.classList.add('btn-primary');
                     airstripsBtn.classList.remove('btn-secondary');
                 }
@@ -1592,7 +1528,7 @@ var cvfrRoutesData = [
                 });
                 var vorBtn = document.getElementById('vorToggleBtn');
                 if (vorBtn) {
-                    vorBtn.textContent = translations[appState.language].hideVOR || 'Hide VOR';
+                    vorBtn.textContent = translations.en.hideVOR || 'Hide VOR';
                     vorBtn.classList.add('btn-primary');
                     vorBtn.classList.remove('btn-secondary');
                 }
@@ -1605,8 +1541,8 @@ var cvfrRoutesData = [
             var vorInfoBtn = document.getElementById('vorInfoToggleBtn');
             if (vorInfoBtn) {
                 vorInfoBtn.textContent = appState.showVORInfo
-                    ? (translations[appState.language].hideVORInfo || 'Hide VOR Info')
-                    : (translations[appState.language].showVORInfo || 'Show VOR Info');
+                    ? (translations.en.hideVORInfo || 'Hide VOR Info')
+                    : (translations.en.showVORInfo || 'Show VOR Info');
                 vorInfoBtn.classList.toggle('btn-primary', appState.showVORInfo);
                 vorInfoBtn.classList.toggle('btn-secondary', !appState.showVORInfo);
             }
@@ -1618,7 +1554,7 @@ var cvfrRoutesData = [
                 });
                 var cvfrBtn = document.getElementById('cvfrPointsToggleBtn');
                 if (cvfrBtn) {
-                    cvfrBtn.textContent = translations[appState.language].hideCVFRPoints || 'Hide CVFR Points';
+                    cvfrBtn.textContent = translations.en.hideCVFRPoints || 'Hide CVFR Points';
                     cvfrBtn.classList.add('btn-primary');
                     cvfrBtn.classList.remove('btn-secondary');
                 }
@@ -1636,7 +1572,7 @@ var cvfrRoutesData = [
                 refreshCVFRRouteLabelScale();
                 var cvfrRoutesBtn = document.getElementById('cvfrRoutesToggleBtn');
                 if (cvfrRoutesBtn) {
-                    cvfrRoutesBtn.textContent = translations[appState.language].hideCVFRRoutes || 'Hide CVFR Routes';
+                    cvfrRoutesBtn.textContent = translations.en.hideCVFRRoutes || 'Hide CVFR Routes';
                     cvfrRoutesBtn.classList.add('btn-primary');
                     cvfrRoutesBtn.classList.remove('btn-secondary');
                 }
@@ -1735,7 +1671,7 @@ var cvfrRoutesData = [
                     marker.addTo(appState.map);
                 });
                 if (btn) {
-                    btn.textContent = translations[appState.language].hideFrequencies || 'Hide Frequencies';
+                    btn.textContent = translations.en.hideFrequencies || 'Hide Frequencies';
                     btn.classList.add('btn-primary');
                     btn.classList.remove('btn-secondary');
                 }
@@ -1744,7 +1680,7 @@ var cvfrRoutesData = [
                     appState.map.removeLayer(marker);
                 });
                 if (btn) {
-                    btn.textContent = translations[appState.language].showFrequencies || 'Show Frequencies';
+                    btn.textContent = translations.en.showFrequencies || 'Show Frequencies';
                     btn.classList.remove('btn-primary');
                     btn.classList.add('btn-secondary');
                 }
@@ -1813,7 +1749,7 @@ var cvfrRoutesData = [
                     marker.addTo(appState.map);
                 });
                 if (btn) {
-                    btn.textContent = translations[appState.language].hideVOR || 'Hide VOR';
+                    btn.textContent = translations.en.hideVOR || 'Hide VOR';
                     btn.classList.add('btn-primary');
                     btn.classList.remove('btn-secondary');
                 }
@@ -1822,7 +1758,7 @@ var cvfrRoutesData = [
                     appState.map.removeLayer(marker);
                 });
                 if (btn) {
-                    btn.textContent = translations[appState.language].showVOR || 'Show VOR';
+                    btn.textContent = translations.en.showVOR || 'Show VOR';
                     btn.classList.remove('btn-primary');
                     btn.classList.add('btn-secondary');
                 }
@@ -1997,7 +1933,7 @@ var cvfrRoutesData = [
                     marker.addTo(appState.map);
                 });
                 if (btn) {
-                    btn.textContent = translations[appState.language].hideAirstrips || 'Hide Airstrips';
+                    btn.textContent = translations.en.hideAirstrips || 'Hide Airstrips';
                     btn.classList.add('btn-primary');
                     btn.classList.remove('btn-secondary');
                 }
@@ -2006,7 +1942,7 @@ var cvfrRoutesData = [
                     appState.map.removeLayer(marker);
                 });
                 if (btn) {
-                    btn.textContent = translations[appState.language].showAirstrips || 'Show Airstrips';
+                    btn.textContent = translations.en.showAirstrips || 'Show Airstrips';
                     btn.classList.remove('btn-primary');
                     btn.classList.add('btn-secondary');
                 }
@@ -2073,7 +2009,7 @@ var cvfrRoutesData = [
                     marker.addTo(appState.map);
                 });
                 if (btn) {
-                    btn.textContent = translations[appState.language].hideCVFRPoints || 'Hide CVFR Points';
+                    btn.textContent = translations.en.hideCVFRPoints || 'Hide CVFR Points';
                     btn.classList.add('btn-primary');
                     btn.classList.remove('btn-secondary');
                 }
@@ -2082,31 +2018,13 @@ var cvfrRoutesData = [
                     appState.map.removeLayer(marker);
                 });
                 if (btn) {
-                    btn.textContent = translations[appState.language].showCVFRPoints || 'Show CVFR Points';
+                    btn.textContent = translations.en.showCVFRPoints || 'Show CVFR Points';
                     btn.classList.remove('btn-primary');
                     btn.classList.add('btn-secondary');
                 }
             }
         }
         
-        function updateCVFRPointsLanguage() {
-            // Remove old markers
-            appState.cvfrPoints.forEach(function(marker) {
-                appState.map.removeLayer(marker);
-            });
-            appState.cvfrPoints = [];
-            
-            // Re-initialize with new language
-            initCVFRPoints();
-            
-            // Re-add to map if they were visible
-            if (appState.cvfrPointsVisible) {
-                appState.cvfrPoints.forEach(function(marker) {
-                    marker.addTo(appState.map);
-                });
-            }
-        }
-
         function initCVFRRoutes() {
             // distanceNm/startHeading/endHeading/lineSegments/mid*/start*/end*/
             // arrow* are all precomputed once (scratchpad/cvfr_ref_site/
@@ -2248,7 +2166,7 @@ var cvfrRoutesData = [
                 });
                 refreshCVFRRouteLabelScale();
                 if (btn) {
-                    btn.textContent = translations[appState.language].hideCVFRRoutes || 'Hide CVFR Routes';
+                    btn.textContent = translations.en.hideCVFRRoutes || 'Hide CVFR Routes';
                     btn.classList.add('btn-primary');
                     btn.classList.remove('btn-secondary');
                 }
@@ -2260,7 +2178,7 @@ var cvfrRoutesData = [
                     appState.map.removeLayer(marker);
                 });
                 if (btn) {
-                    btn.textContent = translations[appState.language].showCVFRRoutes || 'Show CVFR Routes';
+                    btn.textContent = translations.en.showCVFRRoutes || 'Show CVFR Routes';
                     btn.classList.remove('btn-primary');
                     btn.classList.add('btn-secondary');
                 }
@@ -2337,6 +2255,7 @@ var cvfrRoutesData = [
                         'The NOTAMs tab and NOTAM map overlay',
                         'The LSA/AZM reporting points layer',
                         'The "Show Airspace" layer (approximate placeholder circles, not real airspace boundaries)',
+                        'The Hebrew interface (EN / עב switch). The app is English-only; Hebrew place names on the map are unchanged',
                         'The "Time Label Interval" setting, which had no effect (minute labels always show on even minutes)'
                     ]
                 }
@@ -4006,169 +3925,6 @@ var cvfrRoutesData = [
             }
         }
         
-        function toggleLanguage() {
-            appState.language = appState.language === 'en' ? 'he' : 'en';
-            updateUILanguage();
-            // CVFR points always show Hebrew names, no need to update them
-        }
-        
-        function updateUILanguage() {
-            var t = translations[appState.language];
-            var isHebrew = appState.language === 'he';
-            
-            // Update direction for Hebrew
-            var sidebar = document.querySelector('.sidebar');
-            if (sidebar) {
-                sidebar.style.direction = isHebrew ? 'rtl' : 'ltr';
-            }
-            
-            // Update title
-            var titleElements = document.querySelectorAll('.panel h1');
-            if (titleElements[0]) titleElements[0].innerHTML = t.title;
-
-            // Update Flight Controls and section headings
-            var h2Elements = document.querySelectorAll('.panel h2');
-            if (h2Elements[0]) h2Elements[0].textContent = t.flightControls;
-            
-            var h3Elements = document.querySelectorAll('.panel h3');
-            if (h3Elements[0]) h3Elements[0].textContent = t.mapLayers;
-            if (h3Elements[1]) h3Elements[1].textContent = t.export;
-            
-            // Update language toggle button
-            var langBtn = document.getElementById('languageToggleBtn');
-            if (langBtn) langBtn.textContent = isHebrew ? 'EN / עב' : 'EN / עב';
-            
-            // Update all buttons
-            var toggleDrawBtn = document.getElementById('toggleDrawBtn');
-            if (toggleDrawBtn) toggleDrawBtn.textContent = appState.isDrawing ? t.stopDrawing : t.startDrawing;
-            
-            
-            var elements = {
-                'addCoordBtn': t.addByCoords,
-                'clearBtn': t.clearRoute,
-                'reverseRouteBtn': t.reverseRoute,
-                'toggleDirectionBtn': appState.reverseRouteVisible ? t.showOutbound : t.showReturn,
-                'addTextBoxBtn': t.addTextBox,
-                'addTextBoxBtn2': t.addTextBox,
-                'frequenciesToggleBtn': appState.frequenciesVisible ? t.hideFrequencies : t.showFrequencies,
-                'vorToggleBtn': appState.vorPointsVisible ? t.hideVOR : t.showVOR,
-                'vorInfoToggleBtn': appState.showVORInfo ? t.hideVORInfo : t.showVORInfo,
-                'airstripsToggleBtn': appState.airstripsVisible ? t.hideAirstrips : t.showAirstrips,
-                'cvfrPointsToggleBtn': appState.cvfrPointsVisible ? t.hideCVFRPoints : t.showCVFRPoints,
-                'cvfrRoutesToggleBtn': appState.cvfrRoutesVisible ? t.hideCVFRRoutes : t.showCVFRRoutes,
-                'exportGPXBtn': t.exportGPX,
-                'screenshotBtn': t.saveMapImage,
-                'printDetailsBtn': t.printDetails,
-                'saveBtn': t.saveBtn
-            };
-            
-            for (var id in elements) {
-                var el = document.getElementById(id);
-                if (el) el.textContent = elements[id];
-            }
-            
-            // Update input placeholder
-            var planNameInput = document.getElementById('plan-name');
-            if (planNameInput) planNameInput.placeholder = t.planName;
-            
-            // Update info tooltip
-            var infoBox = document.querySelector('.info-box');
-            if (infoBox) infoBox.textContent = t.infoTooltip;
-            
-            // Update all labels in Flight Parameters section
-            var cruiseLabel = document.querySelector('label[for="cruiseSpeed"]');
-            if (cruiseLabel) cruiseLabel.textContent = t.cruiseSpeed;
-            
-            var fuelLabel = document.querySelector('label[for="fuelFlow"]');
-            if (fuelLabel) syncFuelFlowInput();
-            
-            // Update Display Settings panel
-            var displaySettingsBtn = document.getElementById('toggleDisplaySettingsBtn');
-            if (displaySettingsBtn) {
-                var arrow = document.getElementById('displaySettingsArrow').textContent;
-                displaySettingsBtn.innerHTML = '<span>⚙️ ' + t.displaySettings + '</span><span id="displaySettingsArrow">' + arrow + '</span>';
-            }
-            
-            // Update slider labels in Display Settings
-            var lineWidthLabel = document.querySelector('label[for="lineWidth"]');
-            if (lineWidthLabel) {
-                var value = document.getElementById('lineWidthValue').textContent;
-                lineWidthLabel.innerHTML = t.lineWidth + ': <strong><span id="lineWidthValue">' + value + '</span>px</strong>';
-            }
-            
-            var circleRadiusLabel = document.querySelector('label[for="circleRadius"]');
-            if (circleRadiusLabel) {
-                var value = document.getElementById('radiusValue').textContent;
-                circleRadiusLabel.innerHTML = t.waypointCircleRadius + ': <strong><span id="radiusValue">' + value + '</span> nm</strong>';
-            }
-            
-            var labelFontSizeLabel = document.querySelector('label[for="labelFontSize"]');
-            if (labelFontSizeLabel) {
-                var value = document.getElementById('fontSizeValue').textContent;
-                labelFontSizeLabel.innerHTML = t.timeLabelFontSize + ': <strong><span id="fontSizeValue">' + value + '</span>px</strong>';
-            }
-            
-            var textBoxFontSizeLabel = document.querySelector('label[for="textBoxFontSize"]');
-            if (textBoxFontSizeLabel) {
-                var value = document.getElementById('textBoxFontSizeValue').textContent;
-                textBoxFontSizeLabel.innerHTML = t.textBoxFontSize + ': <strong><span id="textBoxFontSizeValue">' + value + '</span>px</strong>';
-            }
-            
-            var infoBoxOpacityLabel = document.querySelector('label[for="infoBoxOpacity"]');
-            if (infoBoxOpacityLabel) {
-                var value = document.getElementById('opacityValue').textContent;
-                infoBoxOpacityLabel.innerHTML = t.infoBoxOpacity + ': <strong><span id="opacityValue">' + value + '</span>%</strong>';
-            }
-            
-            // Update panel headers
-            var h2Elements = document.querySelectorAll('.panel h2, .panel h3');
-            h2Elements.forEach(function(header) {
-                var html = header.innerHTML;
-                
-                // Flight Controls
-                if (html.includes('Flight Controls') || html.includes('בקרות טיסה')) {
-                    header.textContent = t.flightControls;
-                }
-                // Waypoints with count and toggle button
-                else if (html.includes('Waypoints') || html.includes('נקודות ציון')) {
-                    var count = document.getElementById('waypoint-count') ? document.getElementById('waypoint-count').textContent : '0';
-                    var waypointsList = document.getElementById('waypoints-list');
-                    var isVisible = waypointsList && waypointsList.style.display !== 'none';
-                    header.innerHTML = '<span>' + t.waypoints + ' (<span id="waypoint-count">' + count + '</span>)</span>' +
-                        '<button id="toggleWaypointsBtn" onclick="toggleWaypointsList()" style="padding: 4px 12px; background: #0066cc; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 12px;">' + 
-                        (isVisible ? t.hide : t.show) + '</button>';
-                }
-                // Statistics
-                else if (html.includes('Statistics') || html.includes('סטטיסטיקה')) {
-                    header.textContent = t.stats;
-                }
-                // Actions
-                else if (html.includes('Actions') || html.includes('פעולות')) {
-                    header.textContent = t.actions;
-                }
-                // Save Flight Plan
-                else if (html.includes('Save Flight Plan') || html.includes('שמור תוכנית טיסה')) {
-                    header.textContent = t.savePlan;
-                }
-                // Keyboard Shortcuts
-                else if (html.includes('Keyboard Shortcuts') || html.includes('קיצורי מקלדת')) {
-                    header.textContent = t.keyboardShortcuts;
-                }
-            });
-            
-            // Update keyboard shortcut descriptions
-            var shortcuts = document.querySelectorAll('.panel:last-of-type .panel > div > div');
-            if (shortcuts.length >= 4) {
-                shortcuts[0].innerHTML = '<span><strong>ESC</strong></span><span>' + t.escKey + '</span>';
-                shortcuts[1].innerHTML = '<span><strong>L</strong></span><span>' + t.lKey + '</span>';
-                shortcuts[2].innerHTML = '<span><strong>M</strong></span><span>' + t.mKey + '</span>';
-                shortcuts[3].innerHTML = '<span><strong>P</strong></span><span>' + t.pKey + '</span>';
-            }
-            
-            // Force update stats to get translated labels
-            updateStats();
-        }
-        
         function addWaypointByCoordinates() {
             var coordStr = prompt('Enter coordinates in format:\n31°57\'59.1"N 34°45\'12.4"E\n\nOr decimal format:\n31.9664 34.7534');
             if (!coordStr) return;
@@ -5076,7 +4832,7 @@ var cvfrRoutesData = [
             appState.showVORInfo = !appState.showVORInfo;
             var btn = document.getElementById('vorInfoToggleBtn');
             if (btn) {
-                var t = translations[appState.language];
+                var t = translations.en;
                 btn.textContent = appState.showVORInfo ? (t.hideVORInfo || 'Hide VOR Info') : (t.showVORInfo || 'Show VOR Info');
                 btn.className = appState.showVORInfo ? 'btn-primary' : 'btn-secondary';
             }
@@ -6147,7 +5903,6 @@ var cvfrRoutesData = [
         function fuelUnitShort() { return appState.fuelUnit === 'L' ? 'L' : 'gal'; }
         function fuelUnitLong()  { return appState.fuelUnit === 'L' ? 'liters' : 'US gallons'; }
         function fuelRateUnit() {
-            if (appState.language === 'he') return appState.fuelUnit === 'L' ? 'ליטר/שעה' : 'גלון/שעה';
             return appState.fuelUnit === 'L' ? 'L/hr' : 'gal/hr';
         }
         function formatFuelFlow() {
@@ -6163,12 +5918,12 @@ var cvfrRoutesData = [
             var sel = document.getElementById('fuelUnit');
             if (sel) sel.value = appState.fuelUnit === 'L' ? 'L' : 'gal';
             var label = document.querySelector('label[for="fuelFlow"]');
-            var t = translations[appState.language] || translations.en;
+            var t = translations.en;
             if (label) label.textContent = t.fuelFlow + ' (' + fuelRateUnit() + ')';
         }
 
         function updateStats() {
-            var t = translations[appState.language];
+            var t = translations.en;
             var totalDistance = 0;
             var totalTimeSecs = 0;
             for (var i = 0; i < appState.waypoints.length - 1; i++) {

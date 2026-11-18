@@ -4808,6 +4808,8 @@ var cvfrRoutesData = [
                     if (el) el.style.visibility = v ? 'visible' : 'hidden';
                 }
             };
+            // Labels are rebuilt on every updateRoute()/zoom; honour "Hide WP Labels".
+            if (appState.waypointLabelsVisible === false) pseudoLabel._setVisibility(false);
             return pseudoLabel;
         }
 
@@ -4827,12 +4829,12 @@ var cvfrRoutesData = [
             if (btn) {
                 if (appState.waypointLabelsVisible) {
                     btn.textContent = 'Hide WP Labels';
-                    btn.classList.remove('btn-primary');
-                    btn.classList.add('btn-secondary');
-                } else {
-                    btn.textContent = 'Show WP Labels';
                     btn.classList.remove('btn-secondary');
                     btn.classList.add('btn-primary');
+                } else {
+                    btn.textContent = 'Show WP Labels';
+                    btn.classList.remove('btn-primary');
+                    btn.classList.add('btn-secondary');
                 }
             }
         }

@@ -6467,6 +6467,24 @@ var cvfrRoutesData = [
                 appState.identPoints = [];
             }
 
+            // Wind tables, top-of-climb markers and ±45° guides are map layers
+            // too. Without this they stayed on the map after Clear Route, and
+            // applyPlan() (which starts with clearRoute) stacked another copy of
+            // every saved wind table on each load.
+            (appState.windTables || []).forEach(function(m) { appState.map.removeLayer(m); });
+            appState.windTables = [];
+            (appState.tocMarkers || []).forEach(function(m) { appState.map.removeLayer(m); });
+            appState.tocMarkers = [];
+            (appState.azimuthGuides || []).forEach(function(l) { appState.map.removeLayer(l); });
+            appState.azimuthGuides = [];
+
+            // Per-waypoint/per-leg state keyed by wp.num ("a_b" for legs) would
+            // otherwise attach itself to the next route's waypoints with the
+            // same numbers. (applyPlan restores these from the plan afterwards.)
+            appState.miniWaypoints = {};
+            appState.legBoxHidden = {};
+            appState.legLabelDraggedPositions = {};
+
             updateWaypointsList();
             updateStats();
         }

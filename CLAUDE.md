@@ -182,6 +182,10 @@ append the new version to `versionOrder`.
   ignored. A remembered active tab of `notams` falls back to Route
   (`switchDashboardTab()` falls back for any unknown tab).
 - **LSA/AZM reporting points**: see the Data tables section.
+- **"Time Label Interval" slider** (`labelInterval`) removed in Nov 2026. It never
+  did anything, and the user wants minute labels fixed on even minutes
+  (`drawMinuteTicks`). Old settings and plans with `labelInterval` are ignored.
+  "Time Tick Interval" (`tickInterval`) is a different setting and still works.
 
 ## Testing workflow
 

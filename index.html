@@ -198,18 +198,6 @@
                             </div>
                         </div>
                         <div class="field">
-                            <label for="labelInterval" class="field-label">
-                                Time Label Interval: <strong>every <span id="labelIntervalValue">1</span> min</strong>
-                            </label>
-                            <input type="range" id="labelInterval" min="1" max="10" value="1" step="1"
-                                   class="range-input">
-                            <div class="range-scale">
-                                <span>1 min</span>
-                                <span>5 min</span>
-                                <span>10 min</span>
-                            </div>
-                        </div>
-                        <div class="field">
                             <label for="arrivalLabelFontSize" class="field-label">
                                 Leg Time Font Size: <strong><span id="arrivalLabelFontSizeValue">9</span>px</strong>
                             </label>
@@ -482,7 +470,6 @@
             lineWidth: 4,
             labelFontSize: 15,
             tickInterval: 1,
-            labelInterval: 1,
             textBoxFontSize: 14,
             infoBoxOpacity: 0.70,
             miniWpLabelOpacity: 0.70,
@@ -2404,7 +2391,8 @@ var cvfrRoutesData = [
                     title: 'Removed',
                     items: [
                         'The NOTAMs tab and NOTAM map overlay',
-                        'The LSA/AZM reporting points layer'
+                        'The LSA/AZM reporting points layer',
+                        'The "Time Label Interval" setting, which had no effect (minute labels always show on even minutes)'
                     ]
                 }
                 ];
@@ -3401,7 +3389,8 @@ var cvfrRoutesData = [
                     if (distFromStart < radiusNm || distFromEnd < radiusNm) continue;
                 }
 
-                // Show accumulative minute label — only on even minutes,
+                // Show accumulative minute label — only on even minutes (fixed by design;
+                // the old "Time Label Interval" slider was removed),
                 // regardless of tickInterval (which controls which minutes
                 // get a tick at all).
                 var displayMin = Math.round(accumMinOffset + min);
@@ -3537,7 +3526,6 @@ var cvfrRoutesData = [
             var totalMinutesExact = timeHours * 60;
             var totalMinutes = Math.floor(totalMinutesExact);
             var tickInterval = appState.tickInterval || 1;
-            var labelInterval = appState.labelInterval || 1;
 
             var midLat = (lastWPd.lat + latlng.lat) / 2, midLng = (lastWPd.lng + latlng.lng) / 2;
             drawLegMidpointMarker({ lat: midLat, lng: midLng }, heading, appState.previewTimeMarkers);
@@ -3665,12 +3653,6 @@ var cvfrRoutesData = [
             document.getElementById('tickInterval').addEventListener('input', function(e) {
                 appState.tickInterval = parseInt(e.target.value);
                 document.getElementById('tickIntervalValue').textContent = appState.tickInterval;
-                updateRoute();
-            });
-
-            document.getElementById('labelInterval').addEventListener('input', function(e) {
-                appState.labelInterval = parseInt(e.target.value);
-                document.getElementById('labelIntervalValue').textContent = appState.labelInterval;
                 updateRoute();
             });
 
@@ -5044,7 +5026,6 @@ var cvfrRoutesData = [
             }
             appState.timeMarkers = [];
             var tickInterval = appState.tickInterval || 1;
-            var labelInterval = appState.labelInterval || 1;
             var radiusNm = appState.circleRadius;
             for (var i = 0; i < appState.waypoints.length - 1; i++) {
                 var wp1 = appState.waypoints[i], wp2 = appState.waypoints[i+1];
@@ -6098,7 +6079,6 @@ var cvfrRoutesData = [
                     var totalMinutesExact = timeHours * 60;
                     var radiusNm = appState.circleRadius;
                     var tickInterval = appState.tickInterval || 1;
-                    var labelInterval = appState.labelInterval || 1;
 
                     // Compute accumulated minutes offset for this leg within its group
                     var accumMinOffset = 0;
@@ -8494,7 +8474,6 @@ var cvfrRoutesData = [
             lineWidth:            4,
             labelFontSize:        15,
             tickInterval:         1,
-            labelInterval:        1,
             infoBoxSizeMultiplier:1.2,
             infoBoxFontMultiplier:1.6364,
             textBoxFontSize:      14,
@@ -8517,7 +8496,6 @@ var cvfrRoutesData = [
                 lineWidth:            appState.lineWidth,
                 labelFontSize:        appState.labelFontSize,
                 tickInterval:         appState.tickInterval,
-                labelInterval:        appState.labelInterval,
                 infoBoxSizeMultiplier:appState.infoBoxSizeMultiplier,
                 infoBoxFontMultiplier:appState.infoBoxFontMultiplier,
                 textBoxFontSize:      appState.textBoxFontSize,
@@ -8541,7 +8519,6 @@ var cvfrRoutesData = [
             appState.lineWidth            = s.lineWidth            !== undefined ? s.lineWidth            : DEFAULT_SETTINGS.lineWidth;
             appState.labelFontSize        = s.labelFontSize        !== undefined ? s.labelFontSize        : DEFAULT_SETTINGS.labelFontSize;
             appState.tickInterval         = s.tickInterval         !== undefined ? s.tickInterval         : DEFAULT_SETTINGS.tickInterval;
-            appState.labelInterval        = s.labelInterval        !== undefined ? s.labelInterval        : DEFAULT_SETTINGS.labelInterval;
             appState.infoBoxSizeMultiplier= s.infoBoxSizeMultiplier!== undefined ? s.infoBoxSizeMultiplier: DEFAULT_SETTINGS.infoBoxSizeMultiplier;
             appState.infoBoxFontMultiplier= s.infoBoxFontMultiplier !== undefined
                 ? s.infoBoxFontMultiplier : DEFAULT_SETTINGS.infoBoxFontMultiplier;
@@ -8571,8 +8548,6 @@ var cvfrRoutesData = [
             document.getElementById('waypointLabelFontSizeValue').textContent = appState.waypointLabelFontSize || 11;
             document.getElementById('tickInterval').value            = appState.tickInterval;
             document.getElementById('tickIntervalValue').textContent = appState.tickInterval;
-            document.getElementById('labelInterval').value           = appState.labelInterval;
-            document.getElementById('labelIntervalValue').textContent= appState.labelInterval;
             document.getElementById('arrivalLabelFontSize').value    = appState.arrivalLabelFontSize;
             document.getElementById('arrivalLabelFontSizeValue').textContent = appState.arrivalLabelFontSize;
             document.getElementById('infoBoxSize').value             = Math.round(appState.infoBoxSizeMultiplier * 100);
@@ -8685,7 +8660,6 @@ var cvfrRoutesData = [
                 legClimbs: appState.legClimbs,
                 defaultAltitude: appState.defaultAltitude,
                 tickInterval: appState.tickInterval,
-                labelInterval: appState.labelInterval,
                 driftColor: appState.driftColor,
                 driftWidth: appState.driftWidth,
                 arrivalLabelFontSize: appState.arrivalLabelFontSize,
@@ -8865,7 +8839,6 @@ var cvfrRoutesData = [
             appState.legClimbs      = plan.legClimbs      || {};
             appState.defaultAltitude = plan.defaultAltitude !== undefined ? plan.defaultAltitude : 400;
             appState.tickInterval   = plan.tickInterval   || 1;
-            appState.labelInterval  = plan.labelInterval  || 1;
             appState.driftColor           = plan.driftColor           || '#cc6600';
             appState.driftWidth           = plan.driftWidth           || 2;
             appState.arrivalLabelFontSize = plan.arrivalLabelFontSize || 9;
@@ -8914,8 +8887,6 @@ var cvfrRoutesData = [
             document.getElementById('radiusValue').textContent = appState.circleRadius.toFixed(1);
             document.getElementById('tickInterval').value   = appState.tickInterval;
             document.getElementById('tickIntervalValue').textContent = appState.tickInterval;
-            document.getElementById('labelInterval').value  = appState.labelInterval;
-            document.getElementById('labelIntervalValue').textContent = appState.labelInterval;
             document.getElementById('driftColor').value     = appState.driftColor;
             document.getElementById('driftWidth').value     = appState.driftWidth;
             document.getElementById('driftWidthValue').textContent = appState.driftWidth;

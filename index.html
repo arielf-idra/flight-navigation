@@ -3555,7 +3555,7 @@ var cvfrRoutesData = [
             document.addEventListener('keydown', function(e) {
                 // ESC always closes popup even from inputs
                 if (e.key === 'Escape' && (document.activeElement.tagName === 'INPUT' || document.activeElement.tagName === 'TEXTAREA')) {
-                    if (appState.map.getPopup()) appState.map.closePopup();
+                    appState.map.closePopup(); // no-op when no popup is open
                     return;
                 }
                 // Disable all keyboard shortcuts when typing in any input or textarea
@@ -3564,7 +3564,7 @@ var cvfrRoutesData = [
                 }
                 
                 if (e.key === 'Escape') {
-                    if (appState.map.getPopup()) appState.map.closePopup();
+                    appState.map.closePopup(); // no-op when no popup is open
                     if (appState.isDrawing) toggleDrawing();
                     return;
                 }

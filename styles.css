@@ -23,7 +23,6 @@
         * { margin: 0; padding: 0; box-sizing: border-box; }
         #projectionWarning { display:none; position:fixed; top:0; left:0; right:0; z-index:10000; background:#c0392b; color:white; font-weight:600; font-size:13px; text-align:center; padding:8px 16px; box-shadow:0 2px 6px rgba(0,0,0,0.4); }
         .projection-warning-visible .leaflet-top { margin-top: 42px !important; }
-        .azm-warning-visible .leaflet-top { margin-top: 42px !important; }
         .leaflet-top { transition: margin-top 0.2s; }
         body { font-family: var(--font); height: 100vh; background: var(--bg); color: var(--text); }
         .container { display: flex; height: 100vh; overflow: hidden; }

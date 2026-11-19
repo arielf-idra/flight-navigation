@@ -7,6 +7,23 @@ sibling `styles.css` (plain `<link rel="stylesheet">`, no build step involved). 
 maps are OpenStreetMap and Google Satellite/Hybrid/Streets — there is no calibrated
 chart-image overlay anymore (that feature, and the two JPGs it used, were removed).
 
+## Other apps in this repo
+
+The repo now hosts more than one static app. GitHub Pages serves each folder's
+`index.html` at its own URL. The flight-navigation app stays at the root so its
+URL doesn't change.
+- `scan-trainer/`: Instrument Scan Trainer, live at
+  https://arielf-idra.github.io/flight-navigation/scan-trainer/. It is a single
+  self-contained `index.html` and shares no code with the root app. Its own
+  `scan-trainer/CLAUDE.md` describes it.
+- **Shared origin.** All the apps run on `arielf-idra.github.io`, so they share
+  `localStorage` and IndexedDB. Every app other than the root one must prefix its
+  keys (the scan trainer uses `scanTrainer.`), and must never read or clear the
+  root app's keys (`flightPlans`, `flightNavAutosaveDraft`, settings, etc.).
+- The standing instructions below (commit and push as we go, keep the docs
+  updated) apply to every app in the repo. The flight-nav What's New changelog
+  covers the root app only.
+
 ## Standing instructions
 
 - **Commit and push as we go** (user instruction, Nov 2026; this replaces the old

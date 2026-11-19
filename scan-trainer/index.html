@@ -1,0 +1,619 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Instrument Scan Trainer</title>
+<link rel="icon" href="data:,">
+<style>
+    :root {
+        --bg: #0e1116; --panel: #20242b; --card: #1a1e24; --text: #e6e6e6; --muted: #9aa4b1;
+        --accent: #f39c12; --good: #2ecc71; --bad: #e74c3c; --line: #3a4250;
+    }
+    * { box-sizing: border-box; }
+    html, body { margin: 0; background: var(--bg); color: var(--text);
+        font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
+    body { min-height: 100vh; display: flex; flex-direction: column; align-items: center; padding: 10px 16px 24px; }
+    header { width: min(100%, 760px); display: flex; justify-content: space-between; align-items: center; gap: 12px; margin-bottom: 8px; }
+    h1 { font-size: 18px; margin: 0; font-weight: 600; }
+    .hud { font-size: 14px; color: var(--muted); display: flex; gap: 12px; align-items: center; }
+    button, select { font: inherit; border-radius: 6px; border: 1px solid var(--line); background: #2a303a; color: var(--text); padding: 6px 12px; }
+    button { cursor: pointer; }
+    button:hover { filter: brightness(1.15); }
+    button.primary { background: var(--accent); border-color: var(--accent); color: #111; font-weight: 600; }
+    .panel { width: min(100%, 760px, calc((100vh - 220px) * 1.12)); background: var(--panel); border-radius: 16px; padding: 14px;
+        display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; box-shadow: inset 0 0 0 2px #2c323c; }
+    .gauge { position: relative; aspect-ratio: 1; }
+    .gauge svg { width: 100%; height: 100%; display: block; }
+    .gauge.small { grid-column: 2; width: 72%; justify-self: center; }
+    .gauge.ai { touch-action: none; cursor: grab; }
+    .cover { position: absolute; inset: 0; border-radius: 50%; display: flex; align-items: center; justify-content: center;
+        background: radial-gradient(circle at 35% 30%, #3a3f47, #15181d 70%); color: #59606b;
+        font-size: clamp(10px, 2.2vw, 15px); letter-spacing: .12em; font-weight: 600; user-select: none; }
+    .gauge.revealed .cover { display: none; }
+    .cover.masking { color: transparent;
+        background: repeating-linear-gradient(35deg, #c8c8c8 0 2px, transparent 2px 8px),
+                    repeating-linear-gradient(-55deg, #c8c8c8 0 2px, #121212 2px 10px); }
+    .qbar { width: min(100%, 760px); min-height: 104px; margin-top: 12px; background: var(--card); border-radius: 12px;
+        padding: 12px; display: flex; flex-direction: column; align-items: center; gap: 10px; }
+    .qprompt { font-size: 16px; color: var(--muted); min-height: 22px; text-align: center; }
+    .qprompt.good { color: var(--good); } .qprompt.bad { color: var(--bad); }
+    .qopts { display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; }
+    .qopts button { min-width: 96px; padding: 10px 12px; font-size: 16px; }
+    .qopts button .k { color: var(--muted); font-size: 12px; margin-right: 6px; }
+    .qopts button.correct { background: #1e5a34; border-color: var(--good); }
+    .qopts button.wrong { background: #5a1e1e; border-color: var(--bad); }
+    .overlay { position: fixed; inset: 0; background: rgba(5, 7, 10, .82); display: flex; align-items: flex-start; justify-content: center;
+        padding: 24px 16px; overflow-y: auto; z-index: 10; }
+    .overlay[hidden] { display: none; }
+    .dialog { width: min(100%, 560px); background: var(--card); border: 1px solid var(--line); border-radius: 14px; padding: 20px; }
+    .dialog h2 { margin: 0 0 8px; font-size: 20px; }
+    .dialog p { color: var(--muted); line-height: 1.45; margin: 6px 0 12px; font-size: 14px; }
+    .form { display: grid; grid-template-columns: auto 1fr; gap: 10px 14px; align-items: center; margin: 14px 0; font-size: 14px; }
+    .form label.row { color: var(--muted); }
+    .checks { display: flex; flex-wrap: wrap; gap: 6px 14px; }
+    .checks label { white-space: nowrap; }
+    .actions { display: flex; gap: 10px; justify-content: flex-end; margin-top: 16px; flex-wrap: wrap; }
+    table { width: 100%; border-collapse: collapse; font-size: 14px; margin: 10px 0; }
+    th, td { text-align: left; padding: 6px 4px; border-bottom: 1px solid #2c323c; }
+    th { color: var(--muted); font-weight: 500; }
+    td.num, th.num { text-align: right; }
+    .big { display: flex; gap: 12px; flex-wrap: wrap; margin: 12px 0; }
+    .big div { flex: 1 1 120px; background: #232830; border-radius: 10px; padding: 10px; }
+    .big b { display: block; font-size: 24px; }
+    .big span { color: var(--muted); font-size: 12px; }
+    .note { font-size: 12px; color: #6f7884; margin-top: 14px; }
+    @media (max-width: 520px) { .form { grid-template-columns: 1fr; } }
+</style>
+</head>
+<body>
+<header>
+    <h1>Instrument Scan Trainer</h1>
+    <div class="hud">
+        <span id="hudCount"></span>
+        <button id="stopBtn" hidden>Stop</button>
+        <button id="menuBtn">Settings</button>
+    </div>
+</header>
+
+<main class="panel" id="panel">
+    <div class="gauge" data-key="asi"></div>
+    <div class="gauge ai revealed" data-key="ai"></div>
+    <div class="gauge" data-key="alt"></div>
+    <div class="gauge" data-key="tc"></div>
+    <div class="gauge" data-key="hdg"></div>
+    <div class="gauge" data-key="vsi"></div>
+    <div class="gauge small" data-key="rpm"></div>
+</main>
+
+<div class="qbar">
+    <div class="qprompt" id="qprompt">Press Start in Settings to begin.</div>
+    <div class="qopts" id="qopts"></div>
+</div>
+
+<div class="overlay" id="setupOverlay">
+    <div class="dialog">
+        <h2>Instrument Scan Trainer</h2>
+        <p>Keep your eyes on the <b>attitude indicator</b>. Every few seconds one other instrument appears
+        for a brief moment and is then covered again. Catch it with a quick glance, return to the attitude
+        indicator, then report what it showed.</p>
+        <p>Hold the attitude level while you scan: <b>arrow keys</b> (or W A S D) fly the aircraft, or
+        drag on the attitude indicator. Up/W pushes the nose down, Down/S pulls it up. Answer with the
+        <b>number keys</b> so your eyes can stay on the attitude indicator.</p>
+        <div class="form">
+            <label class="row" for="level">Level</label>
+            <select id="level">
+                <option value="easy">Easy</option>
+                <option value="medium">Medium</option>
+                <option value="hard">Hard</option>
+            </select>
+            <label class="row" for="flashMs">Flash duration</label>
+            <div><input type="range" id="flashMs" min="100" max="1500" step="50" style="vertical-align:middle;width:60%"> <span id="flashMsVal"></span></div>
+            <label class="row" for="count">Flashes per session</label>
+            <select id="count">
+                <option value="10">10</option>
+                <option value="20">20</option>
+                <option value="40">40</option>
+            </select>
+            <label class="row" for="interval">Time between flashes</label>
+            <select id="interval">
+                <option value="2-4">2 – 4 s</option>
+                <option value="3-6">3 – 6 s</option>
+                <option value="5-10">5 – 10 s</option>
+            </select>
+            <label class="row" for="timeout">Time to answer</label>
+            <select id="timeout">
+                <option value="4">4 s</option>
+                <option value="6">6 s</option>
+                <option value="10">10 s</option>
+            </select>
+            <label class="row" for="turb">Attitude disturbance</label>
+            <select id="turb">
+                <option value="off">Off (no flying task)</option>
+                <option value="light">Light</option>
+                <option value="moderate">Moderate</option>
+            </select>
+            <span class="row" style="color:var(--muted)">Instruments</span>
+            <div class="checks" id="instrChecks"></div>
+        </div>
+        <div class="actions">
+            <button id="historyBtn">History</button>
+            <button class="primary" id="startBtn">Start (Space)</button>
+        </div>
+        <div class="note">A training aid for scan discipline only. The instrument markings are generic
+        and don't represent any particular aircraft.</div>
+    </div>
+</div>
+
+<div class="overlay" id="resultsOverlay" hidden>
+    <div class="dialog" id="resultsBody"></div>
+</div>
+
+<script>
+'use strict';
+// localStorage keys use this prefix: the flight-navigation app at the repo root shares this
+// origin (and therefore its localStorage), so never use an unprefixed key here.
+const STORE = 'scanTrainer.';
+const NS = 'http://www.w3.org/2000/svg';
+const SKY = '#2f7fd1', GROUND = '#7a4a22', ORANGE = '#f39c12';
+
+// ── SVG helpers (gauge geometry: 200×200 viewBox, centre 100,100; angles clockwise from 12 o'clock) ──
+function el(tag, attrs, parent) {
+    const e = document.createElementNS(NS, tag);
+    for (const k in attrs) e.setAttribute(k, attrs[k]);
+    if (parent) parent.appendChild(e);
+    return e;
+}
+function pt(r, deg) { const a = (deg - 90) * Math.PI / 180; return [100 + r * Math.cos(a), 100 + r * Math.sin(a)]; }
+function arcPath(r, a0, a1) {
+    const [x0, y0] = pt(r, a0), [x1, y1] = pt(r, a1);
+    return `M${x0} ${y0} A${r} ${r} 0 ${a1 - a0 > 180 ? 1 : 0} 1 ${x1} ${y1}`;
+}
+function arc(g, r, a0, a1, color, w) { el('path', { d: arcPath(r, a0, a1), stroke: color, 'stroke-width': w, fill: 'none' }, g); }
+function tick(g, deg, r0, r1, w, color) {
+    const [x0, y0] = pt(r0, deg), [x1, y1] = pt(r1, deg);
+    el('line', { x1: x0, y1: y0, x2: x1, y2: y1, stroke: color || '#fff', 'stroke-width': w }, g);
+}
+function txt(g, x, y, s, size, color, extra) {
+    const t = el('text', Object.assign({ x, y, 'font-size': size, fill: color || '#fff', 'text-anchor': 'middle',
+        'dominant-baseline': 'central', 'font-family': 'Arial, Helvetica, sans-serif', 'font-weight': 'bold' }, extra || {}), g);
+    t.textContent = s;
+    return t;
+}
+function label(g, deg, r, s, size) { const [x, y] = pt(r, deg); return txt(g, x, y, s, size); }
+function face(svg) {
+    el('circle', { cx: 100, cy: 100, r: 99, fill: '#2b2f35' }, svg);
+    el('circle', { cx: 100, cy: 100, r: 93, fill: '#0b0b0b', stroke: '#000', 'stroke-width': 2 }, svg);
+}
+function needle(svg, len, width, color) {
+    const g = el('g', {}, svg);
+    el('path', { d: `M100 114 L${100 - width / 2} 100 L100 ${100 - len} L${100 + width / 2} 100 Z`, fill: color || '#fff' }, g);
+    return g;
+}
+function hub(svg) { el('circle', { cx: 100, cy: 100, r: 6, fill: '#333', stroke: '#888', 'stroke-width': 1 }, svg); }
+function rot(g, deg) { g.setAttribute('transform', `rotate(${deg} 100 100)`); }
+const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
+
+// ── Instruments: each build function draws the dial and returns update(value) ──
+function buildASI(svg) {
+    face(svg);
+    const A = v => 10 + (clamp(v, 30, 200) - 30) / 170 * 320;
+    arc(svg, 80, A(40), A(85), '#fff', 4);
+    arc(svg, 87, A(50), A(130), '#1fa64a', 6);
+    arc(svg, 87, A(130), A(165), '#f1c40f', 6);
+    for (let v = 40; v <= 200; v += 5) tick(svg, A(v), v % 10 ? 85 : (v % 20 ? 81 : 77), 91, v % 20 ? 1.3 : 2.5);
+    tick(svg, A(165), 76, 92, 3.5, '#e74c3c');
+    for (let v = 40; v <= 200; v += 20) label(svg, A(v), 64, v, 13);
+    txt(svg, 100, 128, 'AIRSPEED', 8, '#bbb');
+    txt(svg, 100, 72, 'KNOTS', 8, '#bbb');
+    const n = needle(svg, 84, 5); hub(svg);
+    return v => rot(n, A(v));
+}
+
+function buildALT(svg) {
+    face(svg);
+    for (let i = 0; i < 50; i++) tick(svg, i * 7.2, i % 5 ? 84 : 77, 91, i % 5 ? 1.2 : 2.5);
+    for (let d = 0; d < 10; d++) label(svg, d * 36, 66, d, 17);
+    txt(svg, 100, 72, 'ALT', 8, '#bbb');
+    txt(svg, 100, 128, '100 FEET', 7, '#bbb');
+    el('rect', { x: 126, y: 93, width: 30, height: 14, fill: '#1c1c1c', stroke: '#555' }, svg);
+    txt(svg, 141, 100.5, '29.92', 8, '#ddd');
+    const h10k = el('g', {}, svg);
+    el('line', { x1: 100, y1: 100, x2: 100, y2: 12, stroke: '#fff', 'stroke-width': 1.5 }, h10k);
+    el('path', { d: 'M100 8 L95 18 L105 18 Z', fill: '#fff' }, h10k);
+    const h1k = needle(svg, 52, 10);
+    const h100 = needle(svg, 84, 5);
+    hub(svg);
+    return alt => { rot(h100, (alt % 1000) / 1000 * 360); rot(h1k, (alt % 10000) / 10000 * 360); rot(h10k, alt / 100000 * 360); };
+}
+
+function buildHDG(svg) {
+    face(svg);
+    const card = el('g', {}, svg);
+    const names = { 0: 'N', 90: 'E', 180: 'S', 270: 'W' };
+    for (let d = 0; d < 360; d += 5) tick(card, d, d % 10 ? 85 : 79, 91, d % 10 ? 1.2 : 2.2);
+    for (let d = 0; d < 360; d += 30) {
+        const [x, y] = pt(68, d);
+        txt(card, x, y, names[d] || String(d / 10), names[d] !== undefined ? 17 : 14,
+            names[d] !== undefined ? '#fff' : '#ddd', { transform: `rotate(${d} ${x} ${y})` });
+    }
+    for (let d = 45; d < 360; d += 45) if (d % 90) tick(svg, d, 93, 98, 2.5, ORANGE);
+    el('path', { d: 'M100 13 L94 3 L106 3 Z', fill: ORANGE }, svg);
+    el('path', { d: 'M100 66 L104 78 L104 92 L130 104 L130 111 L104 106 L104 122 L113 128 L113 133 L100 130 L87 133 L87 128 L96 122 L96 106 L70 111 L70 104 L96 92 L96 78 Z',
+        fill: 'none', stroke: ORANGE, 'stroke-width': 2.5, 'stroke-linejoin': 'round' }, svg);
+    return h => rot(card, -h);
+}
+
+function buildVSI(svg) {
+    face(svg);
+    // 0 at 9 o'clock, climb above, descent below, ±2000 meet at 3 o'clock
+    const A = v => 270 + clamp(v, -2000, 2000) / 2000 * 180;
+    for (let v = -1900; v <= 1900; v += 100) tick(svg, A(v), v % 500 ? 85 : 77, 91, v % 500 ? 1.2 : 2.5);
+    tick(svg, A(0), 75, 91, 3); tick(svg, A(2000), 75, 91, 3);
+    const lab = { 0: '0', 500: '.5', 1000: '1', 1500: '1.5' };
+    for (const v in lab) { label(svg, A(+v), 66, lab[v], 15); if (+v) label(svg, A(-v), 66, lab[v], 15); }
+    label(svg, A(2000), 66, '2', 15);
+    txt(svg, 62, 82, 'UP', 8, '#bbb'); txt(svg, 62, 118, 'DOWN', 8, '#bbb');
+    txt(svg, 116, 84, 'VERTICAL SPEED', 6.5, '#bbb'); txt(svg, 116, 117, '×1000 FT/MIN', 6.5, '#bbb');
+    const n = needle(svg, 84, 5); hub(svg);
+    return v => rot(n, A(v));
+}
+
+function buildTC(svg) {
+    face(svg);
+    // Level marks at 3 & 9 o'clock, standard-rate (2 min) marks 20° below them
+    [90, 270, 110, 250].forEach(d => tick(svg, d, 76, 92, 4));
+    label(svg, 236, 80, 'L', 14); label(svg, 124, 80, 'R', 14);
+    txt(svg, 100, 40, 'TURN COORDINATOR', 7, '#bbb');
+    txt(svg, 100, 52, 'D.C. ELEC', 6, '#888');
+    txt(svg, 100, 160, '2 MIN', 9, '#ddd');
+    txt(svg, 100, 172, 'NO PITCH INFORMATION', 5.5, '#888');
+    // inclinometer: glass tube on an arc, ball centred
+    const tube = t => [100 + 172 * Math.sin(t), -40 + 172 * Math.cos(t)];
+    const [ax, ay] = tube(-0.16), [bx, by] = tube(0.16);
+    el('path', { d: `M${ax} ${ay} A172 172 0 0 0 ${bx} ${by}`, stroke: '#d9dccb', 'stroke-width': 15, fill: 'none', 'stroke-linecap': 'round' }, svg);
+    [-0.045, 0.045].forEach(t => { const [x, y] = tube(t); el('line', { x1: x, y1: y - 8, x2: x, y2: y + 8, stroke: '#222', 'stroke-width': 1.5 }, svg); });
+    const [cx, cy] = tube(0);
+    el('circle', { cx, cy, r: 6.5, fill: '#111' }, svg);
+    const plane = el('g', {}, svg);
+    el('rect', { x: 38, y: 97.5, width: 124, height: 5, rx: 2.5, fill: '#fff' }, plane);
+    el('rect', { x: 97.5, y: 80, width: 5, height: 14, fill: '#fff' }, plane);
+    el('circle', { cx: 100, cy: 100, r: 9, fill: '#fff' }, plane);
+    return turn => rot(plane, turn * 10); // turn: -2..2 (half-rate steps), standard rate = 20° tilt
+}
+
+function buildRPM(svg) {
+    face(svg);
+    const A = v => -120 + clamp(v, 0, 3500) / 3500 * 240;
+    arc(svg, 87, A(2100), A(2700), '#1fa64a', 6);
+    for (let v = 0; v <= 3500; v += 100) tick(svg, A(v), v % 500 ? 85 : 77, 91, v % 500 ? 1.2 : 2.5);
+    tick(svg, A(2700), 76, 92, 3.5, '#e74c3c');
+    for (let v = 0; v <= 3500; v += 500) label(svg, A(v), 66, v / 100, 13);
+    txt(svg, 100, 72, '×100', 8, '#bbb');
+    txt(svg, 100, 130, 'RPM', 10, '#bbb');
+    const n = needle(svg, 84, 5); hub(svg);
+    return v => rot(n, A(v));
+}
+
+function buildAI(svg) {
+    const K = 2.5; // px per degree of pitch
+    el('circle', { cx: 100, cy: 100, r: 99, fill: '#2b2f35' }, svg);
+    const defs = el('defs', {}, svg);
+    el('circle', { cx: 100, cy: 100, r: 93 }, el('clipPath', { id: 'aiOuter' }, defs));
+    el('circle', { cx: 100, cy: 100, r: 70 }, el('clipPath', { id: 'aiInner' }, defs));
+    // Outer bank ring rotates with the horizon; the orange index at the top is fixed to the case
+    const ring = el('g', {}, el('g', { 'clip-path': 'url(#aiOuter)' }, svg));
+    el('rect', { x: -100, y: -100, width: 400, height: 200, fill: SKY }, ring);
+    el('rect', { x: -100, y: 100, width: 400, height: 200, fill: GROUND }, ring);
+    el('line', { x1: 0, y1: 100, x2: 200, y2: 100, stroke: '#fff', 'stroke-width': 1.5 }, ring);
+    [10, 20, 30, 60].forEach(b => { tick(ring, b, 76, b % 30 ? 85 : 92, 2.5); tick(ring, -b, 76, b % 30 ? 85 : 92, 2.5); });
+    [45, -45].forEach(b => { const [x, y] = pt(80, b); el('path', { d: `M${x} ${y - 4} L${x - 3.5} ${y + 3} L${x + 3.5} ${y + 3} Z`, fill: '#fff', transform: `rotate(${b} ${x} ${y})` }, ring); });
+    el('path', { d: 'M100 80 L94 72 L106 72 Z', fill: '#fff' }, ring); // zero mark (points down at the index)
+    // Inner sphere: rotates with bank and moves with pitch
+    const pitch = el('g', {}, el('g', { 'clip-path': 'url(#aiInner)' }, svg));
+    el('rect', { x: -200, y: -400, width: 600, height: 500, fill: SKY }, pitch);
+    el('rect', { x: -200, y: 100, width: 600, height: 500, fill: GROUND }, pitch);
+    el('line', { x1: -200, y1: 100, x2: 400, y2: 100, stroke: '#fff', 'stroke-width': 2 }, pitch);
+    [-20, -15, -10, -5, 5, 10, 15, 20].forEach(p => {
+        const y = 100 - p * K, hw = p % 10 ? 9 : 18;
+        el('line', { x1: 100 - hw, y1: y, x2: 100 + hw, y2: y, stroke: '#fff', 'stroke-width': 1.5 }, pitch);
+        if (!(p % 10)) { txt(pitch, 100 - hw - 8, y, Math.abs(p), 8); txt(pitch, 100 + hw + 8, y, Math.abs(p), 8); }
+    });
+    el('circle', { cx: 100, cy: 100, r: 70, fill: 'none', stroke: '#111', 'stroke-width': 2 }, svg);
+    // Fixed parts: bank index and the miniature aircraft
+    el('path', { d: 'M100 24 L94 33 L106 33 Z', fill: ORANGE }, svg);
+    el('path', { d: 'M48 98 H84 L92 106 L100 100 L108 106 L116 98 H152 V102 H118 L108 112 L100 106 L92 112 L82 102 H48 Z', fill: ORANGE }, svg);
+    el('circle', { cx: 100, cy: 100, r: 3, fill: ORANGE }, svg);
+    return (p, b) => {
+        ring.setAttribute('transform', `rotate(${-b} 100 100)`);
+        pitch.setAttribute('transform', `rotate(${-b} 100 100) translate(0 ${p * K})`);
+    };
+}
+
+// ── Instrument catalogue: values, questions, answer spacing per level ──
+const randInt = (a, b) => a + Math.floor(Math.random() * (b - a + 1));
+const pick = a => a[Math.floor(Math.random() * a.length)];
+const pad3 = n => String(n).padStart(3, '0');
+const TURN_LABELS = { '-2': 'Std rate L', '-1': 'Half rate L', '0': 'No turn', '1': 'Half rate R', '2': 'Std rate R' };
+
+const LEVELS = {
+    easy:   { flash: 900, sp: { asi: 20, alt: 500, hdg: 30, vsi: 500, rpm: 300 }, turns: [-2, 0, 2] },
+    medium: { flash: 500, sp: { asi: 10, alt: 200, hdg: 10, vsi: 200, rpm: 100 }, turns: [-2, -1, 0, 1, 2] },
+    hard:   { flash: 250, sp: { asi: 5,  alt: 100, hdg: 5,  vsi: 100, rpm: 50 },  turns: [-2, -1, 0, 1, 2] },
+};
+
+// Four consecutive options `sp` apart that include `value` (in a random position) and stay in [min, max]
+function numOpts(value, sp, min, max, wrap) {
+    const starts = [];
+    for (let k = 0; k < 4; k++) { const s = value - k * sp; if (wrap || (s >= min && s + 3 * sp <= max)) starts.push(s); }
+    const s = starts.length ? pick(starts) : value;
+    return [0, 1, 2, 3].map(i => wrap ? (((s + i * sp) % 360) + 360) % 360 : s + i * sp);
+}
+
+const INSTR = {
+    asi: { name: 'Airspeed', short: 'ASI', build: buildASI, gen: () => 5 * randInt(11, 30),
+        q: (v, L) => ({ prompt: 'Airspeed?', opts: numOpts(v, L.sp.asi, 30, 200), fmt: x => x + ' kt' }) },
+    alt: { name: 'Altimeter', short: 'ALT', build: buildALT, gen: () => 100 * randInt(5, 95),
+        q: (v, L) => ({ prompt: 'Altitude?', opts: numOpts(v, L.sp.alt, 0, 20000), fmt: x => x.toLocaleString('en-US') + ' ft' }) },
+    tc:  { name: 'Turn coordinator', short: 'TC', build: buildTC, gen: L => pick(L.turns),
+        q: (v, L) => ({ prompt: 'Turn?', opts: L.turns.slice(), fmt: x => TURN_LABELS[x] }) },
+    hdg: { name: 'Heading', short: 'HDG', build: buildHDG, gen: () => 5 * randInt(0, 71),
+        q: (v, L) => ({ prompt: 'Heading?', opts: numOpts(v, L.sp.hdg, 0, 359, true), fmt: x => pad3(x) + '°' }) },
+    vsi: { name: 'Vertical speed', short: 'VSI', build: buildVSI, gen: () => 100 * randInt(-15, 15),
+        q: (v, L) => ({ prompt: 'Vertical speed?', opts: numOpts(v, L.sp.vsi, -2000, 2000),
+            fmt: x => (x > 0 ? '+' : x < 0 ? '−' : '') + Math.abs(x) + ' fpm' }) },
+    rpm: { name: 'Tachometer', short: 'RPM', build: buildRPM, gen: () => 50 * randInt(34, 54),
+        q: (v, L) => ({ prompt: 'RPM?', opts: numOpts(v, L.sp.rpm, 0, 3500), fmt: x => x + ' rpm' }) },
+};
+const ORDER = ['asi', 'alt', 'tc', 'hdg', 'vsi', 'rpm'];
+const SAMPLE = { asi: 110, alt: 3500, tc: 0, hdg: 270, vsi: 0, rpm: 2400 };
+
+// ── Settings & history (localStorage, all reads/writes guarded) ──
+const DEFAULTS = { level: 'medium', flashMs: 500, count: 20, interval: '3-6', timeout: 6, turb: 'light', instruments: ORDER.slice() };
+function load(key, fallback) { try { const v = JSON.parse(localStorage.getItem(STORE + key)); return v == null ? fallback : v; } catch (e) { return fallback; } }
+function save(key, v) { try { localStorage.setItem(STORE + key, JSON.stringify(v)); } catch (e) {} }
+let cfg = Object.assign({}, DEFAULTS, load('settings', {}));
+if (!LEVELS[cfg.level]) cfg.level = DEFAULTS.level;
+cfg.instruments = (cfg.instruments || []).filter(k => INSTR[k]);
+if (!cfg.instruments.length) cfg.instruments = ORDER.slice();
+
+// ── Build the panel ──
+const $ = id => document.getElementById(id);
+const gauges = {};
+let updateAI;
+document.querySelectorAll('.gauge').forEach(div => {
+    const key = div.dataset.key;
+    const svg = el('svg', { viewBox: '0 0 200 200' });
+    div.appendChild(svg);
+    if (key === 'ai') { updateAI = buildAI(svg); return; }
+    const update = INSTR[key].build(svg);
+    const cover = document.createElement('div');
+    cover.className = 'cover';
+    cover.textContent = INSTR[key].short;
+    div.appendChild(cover);
+    gauges[key] = { div, cover, update };
+    update(SAMPLE[key]);
+});
+function revealAll(on) { for (const k in gauges) gauges[k].div.classList.toggle('revealed', on); }
+revealAll(true); // the full panel is visible until a session starts
+
+// ── Session state ──
+const TURB = { off: 0, light: 4, moderate: 9 }; // disturbance strength, deg/s
+const S = { running: false, phase: 'idle', bank: 0, pitch: 0, rb: 0, rp: 0, holdT: 0, totalT: 0, log: [], flashes: 0, last: {} };
+const keys = new Set();
+const drag = { on: false, x: 0, y: 0, roll: 0, pitch: 0 };
+
+function gauss() { let u = 0, v = 0; while (!u) u = Math.random(); while (!v) v = Math.random(); return Math.sqrt(-2 * Math.log(u)) * Math.cos(2 * Math.PI * v); }
+function intervalMs() { const [a, b] = cfg.interval.split('-').map(Number); return (a + Math.random() * (b - a)) * 1000; }
+
+function startSession() {
+    readForm();
+    $('setupOverlay').hidden = true; $('resultsOverlay').hidden = true;
+    Object.assign(S, { running: true, phase: 'wait', bank: 0, pitch: 0, rb: 0, rp: 0, holdT: 0, totalT: 0, log: [], flashes: 0, last: {} });
+    S.nextAt = performance.now() + 2000;
+    revealAll(false);
+    $('stopBtn').hidden = false;
+    setPrompt('Eyes on the attitude indicator…');
+    $('qopts').innerHTML = '';
+    updateHud();
+}
+
+function updateHud() { $('hudCount').textContent = S.running ? `${Math.min(S.flashes, cfg.count)} / ${cfg.count}` : ''; }
+function setPrompt(s, cls) { const p = $('qprompt'); p.textContent = s; p.className = 'qprompt' + (cls ? ' ' + cls : ''); }
+
+function startFlash(now) {
+    const L = LEVELS[cfg.level];
+    let key = pick(cfg.instruments);
+    if (cfg.instruments.length > 1 && key === S.lastKey && Math.random() < 0.7) key = pick(cfg.instruments.filter(k => k !== key));
+    let value, tries = 0;
+    do { value = INSTR[key].gen(L); } while (value === S.last[key] && ++tries < 10);
+    S.last[key] = value; S.lastKey = key;
+    S.cur = { key, value };
+    gauges[key].update(value);
+    gauges[key].div.classList.add('revealed');
+    S.flashes++; updateHud();
+    S.phase = 'flash'; S.flashEnd = now + cfg.flashMs;
+    setPrompt('');
+}
+
+function showQuestion(now) {
+    const { key, value } = S.cur;
+    const q = INSTR[key].q(value, LEVELS[cfg.level]);
+    S.cur.opts = q.opts; S.cur.fmt = q.fmt;
+    setPrompt(q.prompt);
+    const box = $('qopts'); box.innerHTML = '';
+    q.opts.forEach((o, i) => {
+        const b = document.createElement('button');
+        b.innerHTML = `<span class="k">${i + 1}</span>`;
+        b.appendChild(document.createTextNode(q.fmt(o)));
+        b.addEventListener('click', () => answer(i));
+        box.appendChild(b);
+    });
+    S.phase = 'question'; S.qStart = now; S.qEnd = now + cfg.timeout * 1000;
+}
+
+function answer(i) {
+    if (S.phase !== 'question') return;
+    const now = performance.now();
+    const c = S.cur, ok = i !== null && c.opts[i] === c.value;
+    S.log.push({ key: c.key, ok, timeout: i === null, rt: i === null ? null : (now - S.qStart) / 1000 });
+    const btns = $('qopts').querySelectorAll('button');
+    btns.forEach((b, j) => { b.disabled = true; if (c.opts[j] === c.value) b.classList.add('correct'); else if (j === i) b.classList.add('wrong'); });
+    if (ok) setPrompt(`✓ ${((now - S.qStart) / 1000).toFixed(2)} s`, 'good');
+    else setPrompt(`${i === null ? 'Time up' : '✗'}: it was ${c.fmt(c.value)}`, 'bad');
+    S.phase = 'feedback'; S.fbEnd = now + (ok ? 700 : 1400);
+}
+
+function endFlashCycle(now) {
+    $('qopts').innerHTML = '';
+    if (S.flashes >= cfg.count) { finish(); return; }
+    setPrompt('');
+    S.phase = 'wait'; S.nextAt = now + intervalMs();
+}
+
+function stopSession(showResults) {
+    S.running = false; S.phase = 'idle';
+    for (const k in gauges) gauges[k].cover.classList.remove('masking');
+    revealAll(true);
+    $('stopBtn').hidden = true;
+    $('qopts').innerHTML = '';
+    updateHud();
+    if (!showResults) { setPrompt('Stopped.'); $('setupOverlay').hidden = false; }
+}
+
+function finish() {
+    const holdPct = TURB[cfg.turb] && S.totalT > 0 ? Math.round(S.holdT / S.totalT * 100) : null;
+    stopSession(true);
+    const log = S.log, n = log.length;
+    const correct = log.filter(r => r.ok).length;
+    const rts = log.filter(r => r.ok).map(r => r.rt);
+    const avg = a => a.length ? a.reduce((x, y) => x + y, 0) / a.length : null;
+    const score = n ? Math.round(correct / n * 100) : 0;
+    const entry = { date: new Date().toISOString(), level: cfg.level, flashMs: cfg.flashMs, turb: cfg.turb, n, score, rt: avg(rts), hold: holdPct };
+    const hist = load('history', []); hist.unshift(entry); save('history', hist.slice(0, 50));
+
+    let rows = '';
+    ORDER.filter(k => log.some(r => r.key === k)).forEach(k => {
+        const rs = log.filter(r => r.key === k), ok = rs.filter(r => r.ok);
+        const a = avg(ok.map(r => r.rt));
+        rows += `<tr><td>${INSTR[k].name}</td><td class="num">${ok.length} / ${rs.length}</td>
+            <td class="num">${a == null ? '—' : a.toFixed(2) + ' s'}</td><td class="num">${rs.filter(r => r.timeout).length}</td></tr>`;
+    });
+    setPrompt(`Session done: ${score}% correct.`);
+    $('resultsBody').innerHTML = `
+        <h2>Session results</h2>
+        <p>${cap(cfg.level)} · ${cfg.flashMs} ms flashes · ${n} instruments shown</p>
+        <div class="big">
+            <div><b>${score}%</b><span>correct</span></div>
+            <div><b>${avg(rts) == null ? '—' : avg(rts).toFixed(2) + ' s'}</b><span>avg. answer time (correct)</span></div>
+            <div><b>${holdPct == null ? '—' : holdPct + '%'}</b><span>attitude held (±5° bank, ±3° pitch)</span></div>
+        </div>
+        <table><tr><th>Instrument</th><th class="num">Correct</th><th class="num">Avg. time</th><th class="num">Timeouts</th></tr>${rows}</table>
+        <p>${advice(score, holdPct)}</p>
+        <div class="actions"><button id="resSettings">Settings</button><button class="primary" id="resAgain">Again (Space)</button></div>`;
+    $('resultsOverlay').hidden = false;
+    $('resSettings').onclick = () => { $('resultsOverlay').hidden = true; $('setupOverlay').hidden = false; };
+    $('resAgain').onclick = startSession;
+}
+const cap = s => s[0].toUpperCase() + s.slice(1);
+function advice(score, hold) {
+    if (hold != null && hold < 70) return 'The attitude wandered while you read the instruments. Glance, return to the attitude indicator first, then work out the answer.';
+    if (score >= 90) return 'Strong scan. Try a shorter flash or the next level.';
+    if (score < 60) return 'Try a longer flash or an easier level until the glances feel automatic.';
+    return 'Keep the glances short and return to the attitude indicator every time.';
+}
+
+function showHistory() {
+    const hist = load('history', []);
+    const rows = hist.slice(0, 20).map(h => `<tr><td>${new Date(h.date).toLocaleString()}</td><td>${cap(h.level)}, ${h.flashMs} ms</td>
+        <td class="num">${h.score}%</td><td class="num">${h.rt == null ? '—' : h.rt.toFixed(2) + ' s'}</td><td class="num">${h.hold == null ? '—' : h.hold + '%'}</td></tr>`).join('');
+    $('resultsBody').innerHTML = `<h2>History</h2>
+        ${hist.length ? `<table><tr><th>Date</th><th>Level</th><th class="num">Score</th><th class="num">Time</th><th class="num">Attitude</th></tr>${rows}</table>` : '<p>No sessions yet.</p>'}
+        <p>Stored in this browser only.</p>
+        <div class="actions">${hist.length ? '<button id="histClear">Clear history</button>' : ''}<button class="primary" id="histBack">Back</button></div>`;
+    $('setupOverlay').hidden = true; $('resultsOverlay').hidden = false;
+    $('histBack').onclick = () => { $('resultsOverlay').hidden = true; $('setupOverlay').hidden = false; };
+    if ($('histClear')) $('histClear').onclick = () => { if (confirm('Clear all session history?')) { save('history', []); showHistory(); } };
+}
+
+// ── Main loop: attitude dynamics + flash/question state machine ──
+let lastT = performance.now();
+function loop(now) {
+    const dt = Math.min(0.1, (now - lastT) / 1000); lastT = now;
+    if (S.running) {
+        const sig = TURB[cfg.turb];
+        const kr = (keys.has('right') ? 1 : 0) - (keys.has('left') ? 1 : 0) + drag.roll;
+        const kp = (keys.has('pull') ? 1 : 0) - (keys.has('push') ? 1 : 0) + drag.pitch;
+        S.rb += -S.rb * 0.6 * dt + gauss() * sig * Math.sqrt(dt);
+        S.rp += -S.rp * 0.6 * dt + gauss() * sig * 0.35 * Math.sqrt(dt);
+        S.bank = clamp(S.bank + (S.rb + clamp(kr, -1, 1) * 20 + (sig ? S.bank * 0.06 : 0)) * dt, -60, 60);
+        S.pitch = clamp(S.pitch + (S.rp + clamp(kp, -1, 1) * 6) * dt, -20, 20);
+        S.totalT += dt;
+        if (Math.abs(S.bank) <= 5 && Math.abs(S.pitch) <= 3) S.holdT += dt;
+
+        if (S.phase === 'wait' && now >= S.nextAt) startFlash(now);
+        else if (S.phase === 'flash' && now >= S.flashEnd) {
+            // cover again, with a brief pattern mask so the image can't linger as an after-image
+            const g = gauges[S.cur.key];
+            g.div.classList.remove('revealed'); g.cover.classList.add('masking');
+            S.phase = 'mask'; S.maskEnd = now + 150;
+        } else if (S.phase === 'mask' && now >= S.maskEnd) {
+            gauges[S.cur.key].cover.classList.remove('masking');
+            showQuestion(now);
+        } else if (S.phase === 'question' && now >= S.qEnd) answer(null);
+        else if (S.phase === 'feedback' && now >= S.fbEnd) endFlashCycle(now);
+    }
+    updateAI(S.pitch, S.bank);
+    requestAnimationFrame(loop);
+}
+
+// ── Input ──
+const KEYMAP = { ArrowLeft: 'left', a: 'left', A: 'left', ArrowRight: 'right', d: 'right', D: 'right',
+    ArrowUp: 'push', w: 'push', W: 'push', ArrowDown: 'pull', s: 'pull', S: 'pull' };
+document.addEventListener('keydown', e => {
+    if (e.target.tagName === 'SELECT' || e.target.tagName === 'INPUT') return;
+    if (KEYMAP[e.key] && S.running) { keys.add(KEYMAP[e.key]); e.preventDefault(); return; }
+    if (/^[1-5]$/.test(e.key) && S.phase === 'question') { const i = +e.key - 1; if (i < S.cur.opts.length) answer(i); e.preventDefault(); return; }
+    if (e.key === ' ' && !S.running) { e.preventDefault(); startSession(); return; }
+    if (e.key === 'Escape' && S.running) stopSession(false);
+});
+document.addEventListener('keyup', e => { if (KEYMAP[e.key]) keys.delete(KEYMAP[e.key]); });
+window.addEventListener('blur', () => keys.clear());
+
+const aiDiv = document.querySelector('.gauge.ai');
+aiDiv.addEventListener('pointerdown', e => { drag.on = true; drag.x = e.clientX; drag.y = e.clientY; aiDiv.setPointerCapture(e.pointerId); });
+aiDiv.addEventListener('pointermove', e => {
+    if (!drag.on) return;
+    const s = aiDiv.clientWidth / 4; // a quarter of the dial's width = full deflection
+    drag.roll = clamp((e.clientX - drag.x) / s, -1, 1);
+    drag.pitch = clamp((e.clientY - drag.y) / s, -1, 1); // drag down = pull = nose up
+});
+const endDrag = () => { drag.on = false; drag.roll = 0; drag.pitch = 0; };
+aiDiv.addEventListener('pointerup', endDrag);
+aiDiv.addEventListener('pointercancel', endDrag);
+
+// ── Setup form ──
+function fillForm() {
+    $('level').value = cfg.level; $('flashMs').value = cfg.flashMs; $('flashMsVal').textContent = cfg.flashMs + ' ms';
+    $('count').value = String(cfg.count); $('interval').value = cfg.interval; $('timeout').value = String(cfg.timeout); $('turb').value = cfg.turb;
+    $('instrChecks').innerHTML = ORDER.map(k => `<label><input type="checkbox" value="${k}" ${cfg.instruments.includes(k) ? 'checked' : ''}> ${INSTR[k].name}</label>`).join('');
+}
+function readForm() {
+    cfg.level = $('level').value; cfg.flashMs = +$('flashMs').value; cfg.count = +$('count').value;
+    cfg.interval = $('interval').value; cfg.timeout = +$('timeout').value; cfg.turb = $('turb').value;
+    const inst = [...document.querySelectorAll('#instrChecks input:checked')].map(c => c.value);
+    cfg.instruments = inst.length ? inst : ORDER.slice();
+    save('settings', cfg);
+}
+$('level').addEventListener('change', () => { const f = LEVELS[$('level').value].flash; $('flashMs').value = f; $('flashMsVal').textContent = f + ' ms'; });
+$('flashMs').addEventListener('input', () => { $('flashMsVal').textContent = $('flashMs').value + ' ms'; });
+$('startBtn').addEventListener('click', startSession);
+$('historyBtn').addEventListener('click', showHistory);
+$('stopBtn').addEventListener('click', () => stopSession(false));
+$('menuBtn').addEventListener('click', () => { if (S.running) stopSession(false); $('resultsOverlay').hidden = true; $('setupOverlay').hidden = false; });
+
+fillForm();
+requestAnimationFrame(loop);
+</script>
+</body>
+</html>

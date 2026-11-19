@@ -163,9 +163,10 @@
         <p>Hold the attitude level while you scan: <b>arrow keys</b> (or W A S D) fly the aircraft, or
         drag on the attitude indicator. Up/W pushes the nose down, Down/S pulls it up. Answer with the
         <b>number keys</b> so your eyes can stay on the attitude indicator.</p>
-        <p class="tiltRow" hidden>On a phone, turn on <b>tilt control</b> and hold the phone like a yoke:
-        turn it like a wheel to bank, tilt the top toward you to raise the nose, away to lower it. The way
-        you hold it when the session starts is neutral; <b>Center</b> resets it.</p>
+        <p class="tiltRow" hidden>On a phone with <b>tilt to fly</b> on, the attitude indicator follows the phone:
+        turn the phone like a wheel to bank, tilt the top toward you to raise the nose. Turbulence pushes the
+        aircraft off, so tilt the phone to keep the miniature aircraft level on the horizon. The way you hold
+        the phone at Start is level; <b>Center</b> resets it.</p>
         <div class="form">
             <label class="row" for="scan">Scan technique</label>
             <div>
@@ -540,7 +541,7 @@ revealAll(true); // the full panel is visible until a session starts
 
 // ── Session state ──
 const TURB = { off: 0, light: 4, moderate: 9 }; // disturbance strength, deg/s
-const S = { running: false, phase: 'idle', bank: 0, pitch: 0, rb: 0, rp: 0, holdT: 0, totalT: 0, log: [], flashes: 0, last: {} };
+const S = { running: false, phase: 'idle', bank: 0, pitch: 0, db: 0, dp: 0, rb: 0, rp: 0, holdT: 0, totalT: 0, log: [], flashes: 0, last: {} };
 const keys = new Set();
 const drag = { on: false, x: 0, y: 0, roll: 0, pitch: 0 };
 
@@ -569,11 +570,14 @@ function onOrient(e) {
     if (tilt.wheel0 === null) centerTilt();
 }
 function centerTilt() { tilt.wheel0 = tilt.wheel; tilt.pitch0 = tilt.pitch; }
-function tiltCmd() {
-    if (!tilt.active || !tilt.have || tilt.wheel0 === null) return [0, 0];
+// Attitude control: the phone's angle away from neutral IS the attitude change, 1:1.
+// Turning the phone 10° clockwise banks the aircraft 10° right (so the drawn horizon stays
+// level with the real one, like a real attitude indicator). Turbulence pushes the aircraft
+// off; the pilot tilts the phone the other way to keep the miniature aircraft on the horizon.
+function tiltOffset() {
+    if (!tilt.active || !tilt.have || tilt.wheel0 === null) return null;
     const dw = ((tilt.wheel - tilt.wheel0 + 540) % 360) - 180, dp = tilt.pitch - tilt.pitch0;
-    const shape = (v, dead, full) => Math.abs(v) < dead ? 0 : clamp((v - Math.sign(v) * dead) / (full - dead), -1, 1);
-    return [shape(dw, 2, 25), shape(dp, 2, 20)]; // 2° dead zone; full deflection at 25° wheel / 20° pitch
+    return [clamp(dw, -60, 60), clamp(dp, -20, 20)];
 }
 // Ask for motion access (iOS) and start listening. MUST be called synchronously from a tap
 // or keypress handler, or iOS rejects the request without showing the prompt.
@@ -637,7 +641,7 @@ function startSession() {
     if (cfg.tilt) startTilt();
     keepAwake(true);
     show(null);
-    Object.assign(S, { running: true, paused: false, phase: 'wait', bank: 0, pitch: 0, rb: 0, rp: 0, holdT: 0, totalT: 0, log: [], flashes: 0, last: {}, seq: 0, lastKey: null });
+    Object.assign(S, { running: true, paused: false, phase: 'wait', bank: 0, pitch: 0, db: 0, dp: 0, rb: 0, rp: 0, holdT: 0, totalT: 0, log: [], flashes: 0, last: {}, seq: 0, lastKey: null });
     S.nextAt = performance.now() + 2000;
     revealAll(false);
     $('pauseBtn').hidden = false; $('finishBtn').hidden = false;
@@ -805,13 +809,18 @@ function loop(now) {
     const dt = Math.min(0.1, (now - lastT) / 1000); lastT = now;
     if (S.running && !S.paused) {
         const sig = TURB[cfg.turb];
-        const [tr, tp] = tiltCmd();
-        const kr = (keys.has('right') ? 1 : 0) - (keys.has('left') ? 1 : 0) + drag.roll + tr;
-        const kp = (keys.has('pull') ? 1 : 0) - (keys.has('push') ? 1 : 0) + drag.pitch + tp;
+        const kr = (keys.has('right') ? 1 : 0) - (keys.has('left') ? 1 : 0) + drag.roll;
+        const kp = (keys.has('pull') ? 1 : 0) - (keys.has('push') ? 1 : 0) + drag.pitch;
         S.rb += -S.rb * 0.6 * dt + gauss() * sig * Math.sqrt(dt);
         S.rp += -S.rp * 0.6 * dt + gauss() * sig * 0.35 * Math.sqrt(dt);
-        S.bank = clamp(S.bank + (S.rb + clamp(kr, -1, 1) * 20 + (sig ? S.bank * 0.06 : 0)) * dt, -60, 60);
-        S.pitch = clamp(S.pitch + (S.rp + clamp(kp, -1, 1) * 6) * dt, -20, 20);
+        // S.db/S.dp: attitude from turbulence + keys/drag (rate control). The phone (if tilt is on)
+        // adds its own angle on top. The spiral tendency acts on the total bank shown.
+        const off = tiltOffset() || [0, 0];
+        const back = off[0] || off[1] ? 0.1 : 0; // with tilt, let the pushed-off attitude ease back slowly so the phone never ends up held at an extreme angle
+        S.db = clamp(S.db + (S.rb + clamp(kr, -1, 1) * 20 + (sig ? S.bank * 0.06 : 0) - S.db * back) * dt, -60, 60);
+        S.dp = clamp(S.dp + (S.rp + clamp(kp, -1, 1) * 6 - S.dp * back) * dt, -20, 20);
+        S.bank = clamp(S.db + off[0], -60, 60);
+        S.pitch = clamp(S.dp + off[1], -20, 20);
         S.totalT += dt;
         if (Math.abs(S.bank) <= 5 && Math.abs(S.pitch) <= 3) S.holdT += dt;
 

@@ -68,9 +68,13 @@ is independent of the flight-navigation app at the repo root; see the root
 - **Tilt control** (phones only, `TILT_OK`): `deviceorientation` beta/gamma
   becomes the "up" vector in screen axes, using `screen.orientation.angle` so
   landscape works.
-  - Turning the phone like a wheel commands roll rate. Tilting the top toward
-    you commands nose up. It is rate control like the keys: 2° dead zone, full
-    rate at 25° (roll) and 20° (pitch).
+  - It is **attitude control**, not rate control, as the user asked ("use the
+    gyros to keep the attitude bird centered"). The phone's angle from neutral
+    is added 1:1 to the attitude (`tiltOffset()`). Turning the phone like a
+    wheel banks; tilting the top toward you raises the nose.
+  - Turbulence and the keys/drag move `S.db`/`S.dp`. The shown attitude is
+    `S.db + phone offset`. With tilt on, `S.db`/`S.dp` ease back slowly, so
+    the phone never has to stay at an extreme angle.
   - Neutral is the phone position at session start, and Center resets it.
   - iOS (Safari, and Chrome, which uses the same engine) needs
     `DeviceOrientationEvent.requestPermission()`. It has to be called

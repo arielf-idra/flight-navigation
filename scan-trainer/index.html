@@ -69,6 +69,10 @@
     .bigBtn { font-size: 20px; padding: 12px 48px; margin: 14px 0 6px; }
     .summary { color: var(--text); font-size: 14px; margin: 8px 0; }
     .hint { color: #6f7884; font-size: 12px; }
+    .tiltBox { margin: 10px 0 2px; }
+    .tiltBox button.on { background: #1e5a34; border-color: var(--good); }
+    .tiltLive { font-size: 12px; color: var(--muted); margin-top: 6px; min-height: 16px; }
+    .tiltLive.ok, #tiltStatus.ok { color: var(--good); } .tiltLive.bad, #tiltStatus.bad { color: var(--bad); }
     .bottomLinks { display: flex; justify-content: center; gap: 10px; margin-top: 18px; padding-top: 14px; border-top: 1px solid #2c323c; }
     .scanFig img { width: 100%; max-width: 440px; height: auto; display: block; margin: 8px auto 0; border-radius: 8px; }
     .scanFig .cap { color: #6f7884; font-size: 11px; text-align: center; margin-top: 4px; }
@@ -81,6 +85,7 @@
     <h1>Instrument Scan Trainer</h1>
     <div class="hud">
         <span id="hudCount"></span>
+        <span id="tiltStatus" hidden></span>
         <button id="centerBtn" hidden title="Make the current phone position neutral">Center</button>
         <button id="pauseBtn" hidden>Pause</button>
         <button id="finishBtn" hidden>Finish</button>
@@ -126,6 +131,10 @@
         glance, return to the attitude indicator, then report what you saw.</p>
         <div class="scanFig" id="startFig"></div>
         <div class="summary" id="startSummary"></div>
+        <div class="tiltRow tiltBox" hidden>
+            <button id="tiltToggle"></button>
+            <div class="tiltLive" id="tiltLive"></div>
+        </div>
         <button class="primary bigBtn" id="startBtn">Start</button>
         <div class="hint" id="startHint">Space starts · arrows or WASD fly · 1–5 answer · Esc pauses</div>
         <div class="bottomLinks">
@@ -544,7 +553,8 @@ function intervalMs() { const [a, b] = cfg.interval.split('-').map(Number); retu
 // Android Chrome needs no prompt. Both need HTTPS (GitHub Pages is). It's rate control
 // like a yoke: phone angle away from neutral = roll/pitch rate, same as the arrow keys.
 const TILT_OK = 'DeviceOrientationEvent' in window && matchMedia('(pointer: coarse)').matches;
-const tilt = { listening: false, active: false, have: false, wheel: 0, pitch: 0, wheel0: null, pitch0: 0 };
+if (cfg.tilt === undefined) cfg.tilt = TILT_OK;
+const tilt = { perm: '', listening: false, active: false, have: false, wheel: 0, pitch: 0, wheel0: null, pitch0: 0 };
 function onOrient(e) {
     if (e.beta == null || e.gamma == null) return;
     const r = Math.PI / 180, b = e.beta * r, g = e.gamma * r;
@@ -565,18 +575,43 @@ function tiltCmd() {
     const shape = (v, dead, full) => Math.abs(v) < dead ? 0 : clamp((v - Math.sign(v) * dead) / (full - dead), -1, 1);
     return [shape(dw, 2, 25), shape(dp, 2, 20)]; // 2° dead zone; full deflection at 25° wheel / 20° pitch
 }
-function startTilt() {
-    // must run synchronously inside the Start tap/keypress, or iOS refuses the permission prompt
-    tilt.wheel0 = null; tilt.have = false;
+// Ask for motion access (iOS) and start listening. MUST be called synchronously from a tap
+// or keypress handler, or iOS rejects the request without showing the prompt.
+// tilt.perm: '' (not asked yet) | 'granted' | 'denied'
+function requestMotion(then) {
     const go = () => {
+        tilt.perm = 'granted';
         if (!tilt.listening) { window.addEventListener('deviceorientation', onOrient); tilt.listening = true; }
-        tilt.active = true; $('centerBtn').hidden = false;
-        setTimeout(() => { if (S.running && tilt.active && !tilt.have) setPrompt('No motion data from this device. Drag on the attitude indicator instead.', 'bad'); }, 1500);
+        if (then) then();
     };
-    const fail = () => setPrompt('Motion access was not allowed. Drag on the attitude indicator instead, or allow it and start again.', 'bad');
     if (typeof DeviceOrientationEvent.requestPermission === 'function') {
-        DeviceOrientationEvent.requestPermission().then(s => s === 'granted' ? go() : fail()).catch(fail);
+        DeviceOrientationEvent.requestPermission()
+            .then(s => { if (s === 'granted') go(); else { tilt.perm = 'denied'; if (then) then(); } })
+            .catch(() => { tilt.perm = 'denied'; if (then) then(); });
     } else go();
+}
+function startTilt() {
+    tilt.wheel0 = null; // re-centre on the first reading of this session
+    requestMotion(() => {
+        if (tilt.perm !== 'granted') return;
+        tilt.active = true; $('centerBtn').hidden = false;
+    });
+}
+// Live sensor readout on the Start screen and a status chip in the header while flying
+function tiltStatusText() {
+    if (!cfg.tilt) return ['Tilt to fly is off. Drag on the attitude indicator to fly.', ''];
+    if (tilt.perm === 'denied') return ['Motion access was denied. On iPhone, close this tab, open the page again and tap Allow.', 'bad'];
+    if (!tilt.perm) return ['Motion access is asked for when you tap Start.', ''];
+    if (!tilt.have) return ['Waiting for motion data… move the phone.', 'bad'];
+    return [`Sensor live · wheel ${tilt.wheel.toFixed(0)}° · tilt ${tilt.pitch.toFixed(0)}°`, 'ok'];
+}
+function refreshTiltUi() {
+    if (!TILT_OK) return;
+    const t = $('tiltToggle');
+    t.textContent = 'Tilt to fly: ' + (cfg.tilt ? 'On' : 'Off'); t.classList.toggle('on', !!cfg.tilt);
+    if (isShown('startOverlay')) { const [s, c] = tiltStatusText(); const l = $('tiltLive'); l.textContent = s; l.className = 'tiltLive' + (c ? ' ' + c : ''); }
+    const st = $('tiltStatus'); st.hidden = !(S.running && cfg.tilt);
+    if (!st.hidden) { const ok = tilt.active && tilt.have; st.textContent = ok ? 'Tilt ✓' : (tilt.perm === 'denied' ? 'Tilt denied' : 'Tilt: no data'); st.className = ok ? 'ok' : 'bad'; }
 }
 let wakeLock = null;
 function keepAwake(on) {
@@ -598,7 +633,7 @@ function refreshStart() {
 }
 
 function startSession() {
-    tilt.active = false; $('centerBtn').hidden = true;
+    tilt.active = false; $('centerBtn').hidden = true; tilt.have = tilt.have && tilt.listening;
     if (cfg.tilt) startTilt();
     keepAwake(true);
     show(null);
@@ -793,6 +828,7 @@ function loop(now) {
         else if (S.phase === 'feedback' && now >= S.fbEnd) endFlashCycle(now);
     }
     updateAI(S.pitch, S.bank);
+    if (TILT_OK && (now - (loop.ui || 0)) > 200) { loop.ui = now; refreshTiltUi(); }
     requestAnimationFrame(loop);
 }
 
@@ -861,6 +897,12 @@ function openSettings() { fillForm(); show('settingsOverlay'); }
 $('settingsBtn').addEventListener('click', openSettings);
 $('settingsDone').addEventListener('click', () => { readForm(); show('startOverlay'); });
 $('centerBtn').addEventListener('click', centerTilt);
+$('tiltToggle').addEventListener('click', () => {
+    cfg.tilt = !cfg.tilt; save('settings', cfg); $('tilt').checked = cfg.tilt;
+    if (cfg.tilt) requestMotion(refreshTiltUi);
+    refreshTiltUi(); refreshStart();
+});
+$('tilt').addEventListener('change', () => { if ($('tilt').checked) requestMotion(); });
 fillForm();
 show('startOverlay');
 requestAnimationFrame(loop);

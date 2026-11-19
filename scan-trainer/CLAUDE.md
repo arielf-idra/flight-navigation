@@ -77,6 +77,16 @@ is independent of the flight-navigation app at the repo root; see the root
     synchronously inside the Start tap or keypress, so keep `startTilt()`
     before any `await` or timer.
   - A screen wake lock is held while flying.
+  - Tilt is **on by default on phones**. The setting is `undefined` until the
+    user saves Settings.
+  - The Start screen has a "Tilt to fly: On/Off" toggle. When turned on, the
+    toggle asks for motion access straight away (`requestMotion()`). Under it,
+    a live readout shows the permission and sensor state
+    (`tiltStatusText()`).
+  - While flying, the header shows a status chip: "Tilt ✓", "Tilt: no data"
+    or "Tilt denied". Both are refreshed about 5 times a second from `loop()`.
+  - iOS remembers a denial for the rest of the tab session. The user has to
+    reopen the page to be asked again.
 - **Storage**: `scanTrainer.settings` and `scanTrainer.history` (last 50
   sessions) in localStorage, read and written through `load()`/`save()` with
   try/catch.

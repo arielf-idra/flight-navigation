@@ -51,6 +51,12 @@ is independent of the flight-navigation app at the repo root; see the root
   - **Pause** shifts every timer in `TIMERS` by the paused time and covers a
     flashing instrument until Resume.
   - **Finish** with answers shows the results; with none it returns to Start.
+- **Mistake review** (Easy and Medium only): after a wrong answer or a timeout,
+  `showReview()` draws the instrument large at its true value. It shows the
+  right answer and the pilot's answer, plus a "how to read it" line from
+  `READ_HINTS`. The session stays paused (`pause('reviewOverlay')`) until any
+  tap or key. Taps in the first 350 ms are ignored, so the tap that answered
+  doesn't close it. Hard shows no review.
 - **Scan techniques** (`SCANS`, `nextKey()`) come from the FAA Instrument Flying
   Handbook (FAA-H-8083-15B, ch. 6, p. 6-11, Figs. 6-17 to 6-19). The labels are
   the FAA names.
@@ -84,11 +90,10 @@ is independent of the flight-navigation app at the repo root; see the root
   - Tilt is **on by default on phones**. The setting is `undefined` until the
     user saves Settings.
   - The Start screen has a "Tilt to fly: On/Off" toggle. When turned on, the
-    toggle asks for motion access straight away (`requestMotion()`). Under it,
-    a live readout shows the permission and sensor state
-    (`tiltStatusText()`).
-  - While flying, the header shows a status chip: "Tilt ✓", "Tilt: no data"
-    or "Tilt denied". Both are refreshed about 5 times a second from `loop()`.
+    toggle asks for motion access straight away (`requestMotion()`).
+  - There are no sensor readouts: the live readout and the header "Tilt ✓"
+    chip were removed once the user confirmed the gyros work. Only an
+    actionable "motion access was denied" message remains, under the toggle.
   - iOS remembers a denial for the rest of the tab session. The user has to
     reopen the page to be asked again.
 - **Storage**: `scanTrainer.settings` and `scanTrainer.history` (last 50

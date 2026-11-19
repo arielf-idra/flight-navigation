@@ -69,10 +69,17 @@
     .bigBtn { font-size: 20px; padding: 12px 48px; margin: 14px 0 6px; }
     .summary { color: var(--text); font-size: 14px; margin: 8px 0; }
     .hint { color: #6f7884; font-size: 12px; }
+    .overlay.review { align-items: center; cursor: pointer; background: rgba(5, 7, 10, .94); }
+    .reviewBox { text-align: center; width: min(100%, 560px); }
+    .reviewTitle { font-size: 18px; margin-bottom: 10px; line-height: 1.4; }
+    .reviewTitle b { color: var(--good); } .reviewTitle s { color: var(--bad); }
+    .reviewGauge { width: min(88vw, 62vh, 480px); margin: 0 auto; padding: 3%; border-radius: 14px; background: linear-gradient(180deg, #b4b8bd, #8f9399); box-shadow: 0 8px 30px rgba(0,0,0,.6); }
+    .reviewGauge svg { width: 100%; height: auto; display: block; }
+    .reviewHint { color: var(--muted); font-size: 14px; line-height: 1.45; margin: 12px auto 8px; max-width: 480px; }
     .tiltBox { margin: 10px 0 2px; }
     .tiltBox button.on { background: #1e5a34; border-color: var(--good); }
     .tiltLive { font-size: 12px; color: var(--muted); margin-top: 6px; min-height: 16px; }
-    .tiltLive.ok, #tiltStatus.ok { color: var(--good); } .tiltLive.bad, #tiltStatus.bad { color: var(--bad); }
+    .tiltLive.bad { color: var(--bad); }
     .bottomLinks { display: flex; justify-content: center; gap: 10px; margin-top: 18px; padding-top: 14px; border-top: 1px solid #2c323c; }
     .scanFig img { width: 100%; max-width: 440px; height: auto; display: block; margin: 8px auto 0; border-radius: 8px; }
     .scanFig .cap { color: #6f7884; font-size: 11px; text-align: center; margin-top: 4px; }
@@ -85,7 +92,6 @@
     <h1>Instrument Scan Trainer</h1>
     <div class="hud">
         <span id="hudCount"></span>
-        <span id="tiltStatus" hidden></span>
         <button id="centerBtn" hidden title="Make the current phone position neutral">Center</button>
         <button id="pauseBtn" hidden>Pause</button>
         <button id="finishBtn" hidden>Finish</button>
@@ -141,6 +147,15 @@
             <button id="historyBtn">History</button>
             <button id="settingsBtn">Settings</button>
         </div>
+    </div>
+</div>
+
+<div class="overlay review" id="reviewOverlay" hidden>
+    <div class="reviewBox">
+        <div class="reviewTitle" id="reviewTitle"></div>
+        <div class="reviewGauge" id="reviewGauge"></div>
+        <div class="reviewHint" id="reviewHint"></div>
+        <div class="hint">Tap anywhere to continue</div>
     </div>
 </div>
 
@@ -601,21 +616,14 @@ function startTilt() {
         tilt.active = true; $('centerBtn').hidden = false;
     });
 }
-// Live sensor readout on the Start screen and a status chip in the header while flying
-function tiltStatusText() {
-    if (!cfg.tilt) return ['Tilt to fly is off. Drag on the attitude indicator to fly.', ''];
-    if (tilt.perm === 'denied') return ['Motion access was denied. On iPhone, close this tab, open the page again and tap Allow.', 'bad'];
-    if (!tilt.perm) return ['Motion access is asked for when you tap Start.', ''];
-    if (!tilt.have) return ['Waiting for motion data… move the phone.', 'bad'];
-    return [`Sensor live · wheel ${tilt.wheel.toFixed(0)}° · tilt ${tilt.pitch.toFixed(0)}°`, 'ok'];
-}
+// Start-screen toggle label, plus a message only if iOS motion access was denied
 function refreshTiltUi() {
     if (!TILT_OK) return;
     const t = $('tiltToggle');
     t.textContent = 'Tilt to fly: ' + (cfg.tilt ? 'On' : 'Off'); t.classList.toggle('on', !!cfg.tilt);
-    if (isShown('startOverlay')) { const [s, c] = tiltStatusText(); const l = $('tiltLive'); l.textContent = s; l.className = 'tiltLive' + (c ? ' ' + c : ''); }
-    const st = $('tiltStatus'); st.hidden = !(S.running && cfg.tilt);
-    if (!st.hidden) { const ok = tilt.active && tilt.have; st.textContent = ok ? 'Tilt ✓' : (tilt.perm === 'denied' ? 'Tilt denied' : 'Tilt: no data'); st.className = ok ? 'ok' : 'bad'; }
+    const l = $('tiltLive');
+    l.textContent = cfg.tilt && tilt.perm === 'denied' ? 'Motion access was denied. On iPhone, close this tab, open the page again and tap Allow.' : '';
+    l.className = 'tiltLive' + (l.textContent ? ' bad' : '');
 }
 let wakeLock = null;
 function keepAwake(on) {
@@ -626,8 +634,8 @@ function keepAwake(on) {
 }
 
 // Only one overlay is shown at a time (or none while flying)
-const OVERLAYS = ['startOverlay', 'settingsOverlay', 'pauseOverlay', 'resultsOverlay'];
-function show(id) { OVERLAYS.forEach(o => { $(o).hidden = o !== id; }); if (id === 'startOverlay') refreshStart(); }
+const OVERLAYS = ['startOverlay', 'settingsOverlay', 'pauseOverlay', 'reviewOverlay', 'resultsOverlay'];
+function show(id) { OVERLAYS.forEach(o => { $(o).hidden = o !== id; }); if (id === 'startOverlay') { refreshStart(); refreshTiltUi(); } }
 const isShown = id => !$(id).hidden;
 function refreshStart() {
     $('startFig').innerHTML = scanFigure(cfg.scan, cfg.rectDir);
@@ -702,6 +710,33 @@ function answer(i) {
     if (ok) setPrompt(`✓ ${((now - S.qStart) / 1000).toFixed(2)} s`, 'good');
     else setPrompt(`${i === null ? 'Time up' : '✗'}: it was ${c.fmt(c.value)}`, 'bad');
     S.phase = 'feedback'; S.fbEnd = now + (ok ? 700 : 1400);
+    if (!ok && cfg.level !== 'hard') showReview(c, i === null ? null : c.opts[i]);
+}
+
+// Learning aid (Easy/Medium only): after a wrong answer or a timeout, show the instrument
+// large at the value it had, with how to read it. The session stays paused until any tap or key.
+const READ_HINTS = {
+    asi: 'Knots. White arc 40–85 (flap range), green 48–129 (normal), yellow 129–163 (caution, smooth air only), red line 163 (C172S POH).',
+    alt: 'Long thin hand: hundreds of feet. Short wide hand: thousands. Thin hand with the triangle: tens of thousands. Read the short hand first, then the long one.',
+    tc: 'The wing tip on the lower L or R mark is a standard-rate turn (3° per second, 2 minutes for 360°). Halfway to the mark is half rate. Wings on the level marks means no turn.',
+    hdg: 'Read the heading under the top index. Card numbers are tens of degrees: 3 = 030°, 33 = 330°. Long ticks every 10°, short every 5°.',
+    vsi: 'Thousands of feet per minute: .5 = 500 fpm. Zero is at 9 o’clock; climb above it, descent below. Each small tick is 100 fpm.',
+    rpm: 'Hundreds of RPM: 25 = 2,500. Each small tick is 100 RPM. Green arc 2100–2700, red line 2700 (C172S POH).',
+};
+let reviewOpenedAt = 0;
+function showReview(c, chosen) {
+    const box = $('reviewGauge'); box.innerHTML = '';
+    const svg = el('svg', { viewBox: '0 0 200 200' }); box.appendChild(svg);
+    INSTR[c.key].build(svg)(c.value);
+    $('reviewTitle').innerHTML = `${INSTR[c.key].name}: it was <b>${c.fmt(c.value)}</b>` +
+        (chosen === null ? ' (time ran out)' : ` · you answered <s>${c.fmt(chosen)}</s>`);
+    $('reviewHint').textContent = READ_HINTS[c.key];
+    reviewOpenedAt = performance.now();
+    pause('reviewOverlay');
+}
+function closeReview() {
+    if (performance.now() - reviewOpenedAt < 350) return; // ignore the tail of the answering tap
+    resume();
 }
 
 function endFlashCycle(now) {
@@ -713,13 +748,13 @@ function endFlashCycle(now) {
 
 // Pause freezes the attitude and every timer; the flashed instrument is covered while paused
 const TIMERS = ['nextAt', 'flashEnd', 'maskEnd', 'qStart', 'qEnd', 'fbEnd'];
-function pause() {
+function pause(overlay) {
     if (!S.running || S.paused) return;
     S.paused = true; S.pausedAt = performance.now(); keys.clear(); endDrag();
     if (S.phase === 'flash' || S.phase === 'mask') gauges[S.cur.key].div.classList.remove('revealed');
     $('pauseInfo').textContent = `${SCANS[cfg.scan].name} · ${Math.min(S.flashes, cfg.count)} of ${cfg.count} flashes · ${S.log.filter(r => r.ok).length} correct so far`;
     $('pauseBtn').textContent = 'Resume';
-    show('pauseOverlay');
+    show(typeof overlay === 'string' ? overlay : 'pauseOverlay');
 }
 function resume() {
     if (!S.paused) return;
@@ -837,7 +872,6 @@ function loop(now) {
         else if (S.phase === 'feedback' && now >= S.fbEnd) endFlashCycle(now);
     }
     updateAI(S.pitch, S.bank);
-    if (TILT_OK && (now - (loop.ui || 0)) > 200) { loop.ui = now; refreshTiltUi(); }
     requestAnimationFrame(loop);
 }
 
@@ -846,6 +880,7 @@ const KEYMAP = { ArrowLeft: 'left', a: 'left', A: 'left', ArrowRight: 'right', d
     ArrowUp: 'push', w: 'push', W: 'push', ArrowDown: 'pull', s: 'pull', S: 'pull' };
 document.addEventListener('keydown', e => {
     if (e.target.tagName === 'SELECT' || e.target.tagName === 'INPUT') return;
+    if (S.paused && isShown('reviewOverlay')) { e.preventDefault(); closeReview(); return; } // any key continues
     if (S.paused) { if (e.key === ' ' || e.key === 'Escape') { e.preventDefault(); resume(); } return; }
     if (KEYMAP[e.key] && S.running) { keys.add(KEYMAP[e.key]); e.preventDefault(); return; }
     if (/^[1-5]$/.test(e.key) && S.phase === 'question') { const i = +e.key - 1; if (i < S.cur.opts.length) answer(i); e.preventDefault(); return; }
@@ -900,6 +935,7 @@ $('historyBtn').addEventListener('click', showHistory);
 $('pauseBtn').addEventListener('click', () => S.paused ? resume() : pause());
 $('finishBtn').addEventListener('click', finishNow);
 $('resumeBtn').addEventListener('click', resume);
+$('reviewOverlay').addEventListener('click', closeReview);
 $('pauseFinishBtn').addEventListener('click', finishNow);
 document.addEventListener('visibilitychange', () => { if (document.hidden) pause(); }); // switching apps pauses
 function openSettings() { fillForm(); show('settingsOverlay'); }

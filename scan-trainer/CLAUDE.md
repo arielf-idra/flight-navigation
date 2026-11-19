@@ -18,8 +18,12 @@ is independent of the flight-navigation app at the repo root; see the root
   are clockwise from 12 o'clock. Each `buildX(svg)` draws a dial and returns
   `update(value)`. `buildAI` returns `update(pitch, bank)`. The bank ring rolls
   with the horizon, and the orange index and miniature aircraft are fixed.
-  - The markings (arcs, redlines) are **generic**, not any real aircraft's. Keep
-    them that way unless the user supplies a specific aircraft's figures.
+  - The panel follows the **Cessna 172S analog panel**. The markings come from
+    the 172S POH: ASI arcs, the stepped tach green arc and red line, the AI bank
+    marks, and the layout with the tach below the VSI. The comment block above
+    `buildASI` lists every figure, its POH section, and the figures that are
+    generic (dial ranges, ALT/TC faces). Don't change those figures without a
+    source the user approves.
 - **Turn coordinator** values are -2..2 in half-rate steps. Standard rate tilts
   the symbol 20°, onto the marks below the level marks.
 - **Session loop** (`loop()`, requestAnimationFrame) runs a state machine:

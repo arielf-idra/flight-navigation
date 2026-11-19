@@ -14,18 +14,18 @@
     html, body { margin: 0; background: var(--bg); color: var(--text);
         font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
     body { min-height: 100vh; display: flex; flex-direction: column; align-items: center; padding: 10px 16px 24px; }
-    header { width: min(100%, 760px); display: flex; justify-content: space-between; align-items: center; gap: 12px; margin-bottom: 8px; }
+    header { width: min(100%, 760px, calc(100vh - 200px)); display: flex; justify-content: space-between; align-items: center; gap: 12px; margin-bottom: 8px; }
     h1 { font-size: 18px; margin: 0; font-weight: 600; }
     .hud { font-size: 14px; color: var(--muted); display: flex; gap: 12px; align-items: center; }
     button, select { font: inherit; border-radius: 6px; border: 1px solid var(--line); background: #2a303a; color: var(--text); padding: 6px 12px; }
     button { cursor: pointer; }
     button:hover { filter: brightness(1.15); }
     button.primary { background: var(--accent); border-color: var(--accent); color: #111; font-weight: 600; }
-    .panel { width: min(100%, 760px, calc((100vh - 220px) * 1.12)); background: var(--panel); border-radius: 16px; padding: 14px;
+    .panel { width: min(100%, 760px, calc(100vh - 200px)); background: var(--panel); border-radius: 16px; padding: 14px;
         display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; box-shadow: inset 0 0 0 2px #2c323c; }
     .gauge { position: relative; aspect-ratio: 1; }
     .gauge svg { width: 100%; height: 100%; display: block; }
-    .gauge.small { grid-column: 2; width: 72%; justify-self: center; }
+    .gauge.tach { grid-column: 3; } /* C172S: tachometer sits below the VSI (POH Fig. 7-2) */
     .gauge.ai { touch-action: none; cursor: grab; }
     .cover { position: absolute; inset: 0; border-radius: 50%; display: flex; align-items: center; justify-content: center;
         background: radial-gradient(circle at 35% 30%, #3a3f47, #15181d 70%); color: #59606b;
@@ -34,7 +34,7 @@
     .cover.masking { color: transparent;
         background: repeating-linear-gradient(35deg, #c8c8c8 0 2px, transparent 2px 8px),
                     repeating-linear-gradient(-55deg, #c8c8c8 0 2px, #121212 2px 10px); }
-    .qbar { width: min(100%, 760px); min-height: 104px; margin-top: 12px; background: var(--card); border-radius: 12px;
+    .qbar { width: min(100%, 760px, calc(100vh - 200px)); min-height: 104px; margin-top: 12px; background: var(--card); border-radius: 12px;
         padding: 12px; display: flex; flex-direction: column; align-items: center; gap: 10px; }
     .qprompt { font-size: 16px; color: var(--muted); min-height: 22px; text-align: center; }
     .qprompt.good { color: var(--good); } .qprompt.bad { color: var(--bad); }
@@ -83,7 +83,7 @@
     <div class="gauge" data-key="tc"></div>
     <div class="gauge" data-key="hdg"></div>
     <div class="gauge" data-key="vsi"></div>
-    <div class="gauge small" data-key="rpm"></div>
+    <div class="gauge tach" data-key="rpm"></div>
 </main>
 
 <div class="qbar">
@@ -195,14 +195,30 @@ function rot(g, deg) { g.setAttribute('transform', `rotate(${deg} 100 100)`); }
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
 
 // ── Instruments: each build function draws the dial and returns update(value) ──
+// C172S MARKINGS: source is the Cessna Model 172S Pilot's Operating Handbook
+// (Revision 4/5, 2004; copy at befa.org/wp-content/uploads/2019/12/POH-Cessna-172S.pdf).
+//  - ASI (Section 2, Airspeed Indicator Markings, KIAS): white arc 40-85,
+//    green arc 48-129, yellow arc 129-163, red line 163.
+//  - Tachometer (Section 2, Figure 2-3, Powerplant Instrument Markings): stepped
+//    green arc 2100-2500 RPM (sea level), 2100-2600 (5000 ft), 2100-2700
+//    (10,000 ft); red line 2700. Section 7 also has an hour meter in the lower dial.
+//    Section 7's text says "green arc from 1900 to 2400 RPM", which contradicts
+//    Section 2. Section 2 (Limitations) is used.
+//  - Attitude indicator (Section 7): bank index marks at 10, 20, 30, 60 and 90°
+//    each side; a pointer at the top reads against the bank scale.
+//  - Panel (Section 7, Figure 7-2): basic T with the gyros over the control column,
+//    ASI left, altimeter right; TC / DG / VSI below; tachometer below the VSI.
+// Not in the POH, so generic: dial scale ranges (ASI to 200 kt, VSI ±2000 fpm,
+// tach 0-3500) and the altimeter and turn-coordinator faces.
+// Only the user can approve changes to these figures (see the root CLAUDE.md data rule).
 function buildASI(svg) {
     face(svg);
     const A = v => 10 + (clamp(v, 30, 200) - 30) / 170 * 320;
     arc(svg, 80, A(40), A(85), '#fff', 4);
-    arc(svg, 87, A(50), A(130), '#1fa64a', 6);
-    arc(svg, 87, A(130), A(165), '#f1c40f', 6);
+    arc(svg, 87, A(48), A(129), '#1fa64a', 6);
+    arc(svg, 87, A(129), A(163), '#f1c40f', 6);
     for (let v = 40; v <= 200; v += 5) tick(svg, A(v), v % 10 ? 85 : (v % 20 ? 81 : 77), 91, v % 20 ? 1.3 : 2.5);
-    tick(svg, A(165), 76, 92, 3.5, '#e74c3c');
+    tick(svg, A(163), 76, 92, 3.5, '#e74c3c');
     for (let v = 40; v <= 200; v += 20) label(svg, A(v), 64, v, 13);
     txt(svg, 100, 128, 'AIRSPEED', 8, '#bbb');
     txt(svg, 100, 72, 'KNOTS', 8, '#bbb');
@@ -285,12 +301,16 @@ function buildTC(svg) {
 function buildRPM(svg) {
     face(svg);
     const A = v => -120 + clamp(v, 0, 3500) / 3500 * 240;
-    arc(svg, 87, A(2100), A(2700), '#1fa64a', 6);
+    // Stepped green arc (POH Fig. 2-3): widest to 2500 (sea level), narrower to 2600 (5000 ft), thinnest to 2700 (10,000 ft)
+    [[2100, 2500, 9], [2500, 2600, 6], [2600, 2700, 3]].forEach(([a, b, w]) => arc(svg, 91 - w / 2, A(a), A(b), '#1fa64a', w));
     for (let v = 0; v <= 3500; v += 100) tick(svg, A(v), v % 500 ? 85 : 77, 91, v % 500 ? 1.2 : 2.5);
     tick(svg, A(2700), 76, 92, 3.5, '#e74c3c');
     for (let v = 0; v <= 3500; v += 500) label(svg, A(v), 66, v / 100, 13);
     txt(svg, 100, 72, '×100', 8, '#bbb');
-    txt(svg, 100, 130, 'RPM', 10, '#bbb');
+    txt(svg, 100, 118, 'RPM', 10, '#bbb');
+    el('rect', { x: 78, y: 134, width: 44, height: 13, fill: '#1c1c1c', stroke: '#555' }, svg); // hour meter
+    txt(svg, 100, 141, '3187.4', 8, '#ddd', { 'font-family': 'Consolas, monospace' });
+    txt(svg, 100, 154, 'HOURS', 5.5, '#888');
     const n = needle(svg, 84, 5); hub(svg);
     return v => rot(n, A(v));
 }
@@ -306,8 +326,8 @@ function buildAI(svg) {
     el('rect', { x: -100, y: -100, width: 400, height: 200, fill: SKY }, ring);
     el('rect', { x: -100, y: 100, width: 400, height: 200, fill: GROUND }, ring);
     el('line', { x1: 0, y1: 100, x2: 200, y2: 100, stroke: '#fff', 'stroke-width': 1.5 }, ring);
-    [10, 20, 30, 60].forEach(b => { tick(ring, b, 76, b % 30 ? 85 : 92, 2.5); tick(ring, -b, 76, b % 30 ? 85 : 92, 2.5); });
-    [45, -45].forEach(b => { const [x, y] = pt(80, b); el('path', { d: `M${x} ${y - 4} L${x - 3.5} ${y + 3} L${x + 3.5} ${y + 3} Z`, fill: '#fff', transform: `rotate(${b} ${x} ${y})` }, ring); });
+    // C172S POH: bank index marks at 10, 20, 30, 60 and 90° each side
+    [10, 20, 30, 60, 90].forEach(b => { tick(ring, b, 76, b % 30 ? 85 : 92, 2.5); tick(ring, -b, 76, b % 30 ? 85 : 92, 2.5); });
     el('path', { d: 'M100 80 L94 72 L106 72 Z', fill: '#fff' }, ring); // zero mark (points down at the index)
     // Inner sphere: rotates with bank and moves with pitch
     const pitch = el('g', {}, el('g', { 'clip-path': 'url(#aiInner)' }, svg));

@@ -524,7 +524,7 @@ function scanFigure(scan, dir) {
         <div class="cap">FAA Instrument Flying Handbook, Figure ${s.fig}. ${s.name} cross-check${note}</div>`;
 }
 
-const DEFAULTS = { scan: 'radial', rectDir: 'ccw', level: 'medium', flashMs: 500, count: 20, interval: '3-6', timeout: 6, turb: 'light', instruments: ORDER.slice() };
+const DEFAULTS = { scan: 'radial', rectDir: 'ccw', level: 'medium', flashMs: 1000, count: 20, interval: '3-6', timeout: 6, turb: 'light', instruments: ORDER.slice() };
 function load(key, fallback) { try { const v = JSON.parse(localStorage.getItem(STORE + key)); return v == null ? fallback : v; } catch (e) { return fallback; } }
 function save(key, v) { try { localStorage.setItem(STORE + key, JSON.stringify(v)); } catch (e) {} }
 let cfg = Object.assign({}, DEFAULTS, load('settings', {}));

@@ -33,7 +33,9 @@ is independent of the flight-navigation app at the repo root; see the root
   the symbol 20°, onto the marks below the level marks.
 - **Session loop** (`loop()`, requestAnimationFrame) runs a state machine:
   `wait` → `flash` (instrument uncovered for `cfg.flashMs`) → `mask` (150 ms
-  pattern mask, so no after-image lingers) → `question` (multiple choice, keys
+  pattern mask, so no after-image lingers). The default flash is 1000 ms
+  (user request). Choosing a level in Settings still presets its own flash
+  (Easy 900, Medium 500, Hard 250 ms), and the slider can override it. → `question` (multiple choice, keys
   1–5, timeout) → `feedback` → `wait`.
 - **Questions**: `INSTR[key].q()` builds options with `numOpts()`: four
   consecutive values, spaced by the level's `LEVELS[level].sp`, that include the

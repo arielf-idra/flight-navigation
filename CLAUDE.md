@@ -177,6 +177,12 @@ touching it. Brief map:
   values. The brackets are controlled by `appState.accumTimeVisible` ("Hide/Show
   Accum. Time" in Layers, default on). Like the other label toggles (distance,
   drift lines, ±45° guides), it is **not** persisted and resets on load.
+- **Ident-point labels** show the time from the leg's start (`formatIdentTime()`).
+  "Show Ident Time from Start" (Layers, `appState.identFromStartVisible`,
+  default off, not persisted) adds the elapsed time from departure in
+  brackets, e.g. `04:12 (17:40)`. It sums the earlier legs rounded, the same
+  way `computeAccumulatedTimeMap()` does, so it agrees with the waypoint
+  labels. `refreshIdentPointTimes()` re-renders the labels.
 - **Leg boxes** (heading triangle, then time, altitude, distance and optional fuel) are
   built in two places that must stay in sync: `updateRoute()` (the normal and
   mini-leg branches) and `updateLegLabelContent()`. The preview-while-drawing box

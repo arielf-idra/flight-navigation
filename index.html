@@ -78,6 +78,7 @@
                         <button class="btn-secondary" id="legFuelToggleBtn" onclick="toggleLegFuel()" style="font-size: 11px; padding: 6px 8px;">Show Leg Fuel</button>
                         <button class="btn-secondary" id="remainingFuelToggleBtn" onclick="toggleRemainingFuel()" style="font-size: 11px; padding: 6px 8px;">Show Remaining Fuel</button>
                         <button class="btn-primary"   id="accumTimeToggleBtn" onclick="toggleAccumTime()" style="font-size: 11px; padding: 6px 8px;">Hide Accum. Time</button>
+                        <button class="btn-secondary" id="identFromStartToggleBtn" onclick="toggleIdentFromStart()" style="font-size: 11px; padding: 6px 8px;">Show Ident Time from Start</button>
                         <button class="btn-primary"   id="vorInfoToggleBtn" onclick="toggleVORInfo()" style="font-size: 11px; padding: 6px 8px;">Hide VOR Info</button>
                         <button class="btn-secondary" id="airstripsToggleBtn" onclick="toggleAirstrips()" style="font-size: 11px; padding: 6px 8px;">Show Airstrips</button>
                         <button class="btn-secondary" id="azimuthGuidesToggleBtn" onclick="toggleAzimuthGuides()" style="font-size: 11px; padding: 6px 8px;">Show ±45° Guides</button>
@@ -431,6 +432,7 @@
             waypointLabelOffsets: {},
             miniWaypoints: {},
             waypointLabelFontSize: 11,
+            identFromStartVisible: false, // ident-point labels also show "(MM:SS)" elapsed from departure
             accumTimeVisible: true, // total elapsed time "(MM:SS)" on each waypoint label
             waypointLabelStyles: {},
             timeMarkers: [],
@@ -2233,6 +2235,7 @@ var cvfrRoutesData = [
                         'New "Hide/Show Accum. Time" button (Layers tab) for the total elapsed time shown in brackets on each waypoint label',
                         'New "Show Leg Fuel" button (Layers tab, off by default): adds each leg’s fuel to its leg box, so it appears on screen and on saved/printed maps',
                         'Your work is autosaved in this browser: refreshing or closing the page no longer loses the route. It is restored on the next visit, with a Discard option. Save Plan still saves to your plans as before',
+                        '"Show Ident Time from Start" (Layers tab, off by default): each ident point label adds the elapsed time from departure in brackets, e.g. 04:12 (17:40)',
                         'Start Fuel (Data tab) and a "Show Remaining Fuel" button (Layers tab, off by default): each waypoint label shows FOB, the fuel on board on arrival, in red below a 30-minute reserve. Start fuel is saved with the plan'
                     ]
                 },
@@ -2930,8 +2933,31 @@ var cvfrRoutesData = [
             var raw = (typeof legIdx === 'number') ? secondsAlongLeg(legIdx, alongTrackDistNm)
                                                    : alongTrackDistNm / appState.cruiseSpeed * 3600;
             var secs = Math.max(0, Math.round(raw));
+            var str = mmss(secs);
+            // Optional elapsed time from departure, in brackets like the waypoint
+            // labels' accumulated time. Earlier legs are summed rounded, exactly as
+            // computeAccumulatedTimeMap() does, so the two always agree.
+            if (appState.identFromStartVisible && typeof legIdx === 'number') {
+                var before = 0;
+                for (var i = 0; i < legIdx; i++) before += Math.round(legSeconds(i));
+                str += ' (' + mmss(before + secs) + ')';
+            }
+            return str;
+        }
+        function mmss(secs) {
             var m = Math.floor(secs / 60), s = secs % 60;
             return (m < 10 ? '0' : '') + m + ':' + (s < 10 ? '0' : '') + s;
+        }
+
+        // Layers-tab toggle (default off, not persisted, like the other label toggles)
+        function toggleIdentFromStart() {
+            appState.identFromStartVisible = !appState.identFromStartVisible;
+            var btn = document.getElementById('identFromStartToggleBtn');
+            if (btn) {
+                btn.textContent = appState.identFromStartVisible ? 'Hide Ident Time from Start' : 'Show Ident Time from Start';
+                btn.className = appState.identFromStartVisible ? 'btn-primary' : 'btn-secondary';
+            }
+            refreshIdentPointTimes();
         }
 
         // Shared by the pin (live drag updates) and any linked text box (initial render).
